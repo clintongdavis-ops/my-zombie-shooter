@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <title>Backyard Defense Prototype</title>
+    <title>Backyard Defense Prototype v2</title>
     <style>
         body {
             background-color: #2c3e50;
@@ -20,18 +20,22 @@
         }
         .ui-bar {
             margin-bottom: 15px;
-            font-size: 20px;
+            font-size: 18px;
             font-weight: bold;
         }
         button {
             background-color: #34495e;
             color: white;
             border: 2px solid transparent;
-            padding: 10px 20px;
+            padding: 8px 15px;
             font-size: 16px;
             cursor: pointer;
             border-radius: 5px;
             margin: 0 5px;
+            transition: 0.2s;
+        }
+        button:hover {
+            background-color: #3d566e;
         }
         button.active {
             border-color: #f1c40f;
@@ -39,16 +43,17 @@
         }
         #energy-display {
             color: #f1c40f;
-            margin-right: 20px;
+            margin-right: 15px;
         }
     </style>
 </head>
 <body>
 
     <div class="ui-bar">
-        <span id="energy-display">☀️ Energy: 200</span>
+        <span id="energy-display">☀️ Energy: 300</span>
         <button id="btn-seedling" class="active" onclick="selectPlant('seedling')">🌱 Indoor Seedling (50)</button>
         <button id="btn-beatboxer" onclick="selectPlant('beatboxer')">📻 Boom Bap Beatboxer (100)</button>
+        <button id="btn-flinger" onclick="selectPlant('flinger')">🌳 Fruit Tree Flinger (150)</button>
     </div>
 
     <canvas id="gameCanvas" width="900" height="500"></canvas>
@@ -58,7 +63,7 @@
         const ctx = canvas.getContext('2d');
         const cellSize = 100;
         
-        let energy = 200;
+        let energy = 300; // Boosted starting energy for testing
         let frame = 0;
         let selectedPlant = 'seedling';
         let gameOver = false;
@@ -66,13 +71,13 @@
         const plants = [];
         const zombies = [];
         const projectiles = [];
-        const floatingSuns = [];
 
         // Update UI
         function updateUI() {
             document.getElementById('energy-display').innerText = `☀️ Energy: ${energy}`;
             document.getElementById('btn-seedling').className = selectedPlant === 'seedling' ? 'active' : '';
             document.getElementById('btn-beatboxer').className = selectedPlant === 'beatboxer' ? 'active' : '';
+            document.getElementById('btn-flinger').className = selectedPlant === 'flinger' ? 'active' : '';
         }
 
         function selectPlant(type) {
@@ -106,56 +111,108 @@
                 } else if (type === 'beatboxer') {
                     this.cost = 100;
                     this.symbol = '📻';
+                } else if (type === 'flinger') {
+                    this.cost = 150;
+                    this.symbol = '🌳';
+                    this.health = 150; // Trees are slightly tougher
                 }
             }
             draw() {
                 ctx.font = '50px Arial';
                 ctx.fillText(this.symbol, this.x + 20, this.y + 70);
+                
+                // Draw Health Bar
+                ctx.fillStyle = 'red';
+                ctx.fillRect(this.x + 20, this.y + 85, 60, 5);
+                ctx.fillStyle = '#2ecc71';
+                let maxHealth = this.type === 'flinger' ? 150 : 100;
+                ctx.fillRect(this.x + 20, this.y + 85, 60 * (this.health / maxHealth), 5);
             }
             update() {
                 if (this.type === 'seedling' && frame % 300 === 0) {
                     energy += 25; // Generates energy
                 }
+                
+                // Beatboxer shoots fast, low damage
                 if (this.type === 'beatboxer' && frame % 100 === 0) {
-                    // Shoot soundwave if zombie in lane
                     let zombieInLane = zombies.some(z => z.y === this.y && z.x > this.x);
                     if (zombieInLane) {
-                        projectiles.push(new Projectile(this.x + 60, this.y + 35));
+                        projectiles.push(new Projectile(this.x + 60, this.y + 35, 'music'));
+                    }
+                }
+
+                // Flinger shoots slow, high damage heavy fruit
+                if (this.type === 'flinger' && frame % 180 === 0) {
+                    let zombieInLane = zombies.some(z => z.y === this.y && z.x > this.x);
+                    if (zombieInLane) {
+                        projectiles.push(new Projectile(this.x + 60, this.y + 20, 'fruit'));
                     }
                 }
             }
         }
 
         class Projectile {
-            constructor(x, y) {
+            constructor(x, y, type) {
                 this.x = x;
                 this.y = y;
-                this.width = 30;
-                this.height = 30;
-                this.speed = 5;
-                this.damage = 20;
+                this.type = type;
+                
+                if (type === 'music') {
+                    this.width = 30;
+                    this.height = 30;
+                    this.speed = 5;
+                    this.damage = 20;
+                    this.symbol = '🎵';
+                } else if (type === 'fruit') {
+                    this.width = 40;
+                    this.height = 40;
+                    this.speed = 4;
+                    this.damage = 60; // 3x damage for the heavy hitter
+                    this.symbol = '🍎';
+                }
             }
             draw() {
-                ctx.font = '30px Arial';
-                ctx.fillText('🎵', this.x, this.y + 25);
+                ctx.font = this.type === 'fruit' ? '40px Arial' : '30px Arial';
+                ctx.fillText(this.symbol, this.x, this.y + 30);
             }
             update() {
                 this.x += this.speed;
+                // Add a slight spin/bounce effect to the fruit visually
+                if(this.type === 'fruit') {
+                    this.y += Math.sin(this.x * 0.1) * 2; 
+                }
             }
         }
 
         class Zombie {
-            constructor(y) {
+            constructor(y, type) {
                 this.x = canvas.width;
                 this.y = y;
                 this.width = cellSize;
                 this.height = cellSize;
-                this.speed = 0.5;
-                this.health = 100;
+                this.type = type;
+                
+                if (type === 'shuffler') {
+                    this.speed = 0.5;
+                    this.health = 100;
+                    this.maxHealth = 100;
+                    this.symbol = '🧟';
+                } else if (type === 'mechanic') {
+                    this.speed = 0.3; // Much slower
+                    this.health = 300; // Tank health
+                    this.maxHealth = 300;
+                    this.symbol = '👷'; // Construction worker/mechanic proxy
+                }
             }
             draw() {
                 ctx.font = '50px Arial';
-                ctx.fillText('🧟', this.x + 20, this.y + 70);
+                ctx.fillText(this.symbol, this.x + 20, this.y + 70);
+                
+                // Draw Shield/Health Bar
+                ctx.fillStyle = 'red';
+                ctx.fillRect(this.x + 20, this.y - 10, 60, 5);
+                ctx.fillStyle = this.type === 'mechanic' ? '#95a5a6' : '#e74c3c'; // Grey bar for mechanic's shield
+                ctx.fillRect(this.x + 20, this.y - 10, 60 * (this.health / this.maxHealth), 5);
             }
             update() {
                 this.x -= this.speed;
@@ -177,7 +234,10 @@
             // Check if cell is empty
             if (plants.some(p => p.x === gridX && p.y === gridY)) return;
 
-            let cost = selectedPlant === 'seedling' ? 50 : 100;
+            let cost = 50;
+            if (selectedPlant === 'beatboxer') cost = 100;
+            if (selectedPlant === 'flinger') cost = 150;
+
             if (energy >= cost) {
                 plants.push(new Plant(gridX, gridY, selectedPlant));
                 energy -= cost;
@@ -198,10 +258,13 @@
             ctx.clearRect(0, 0, canvas.width, canvas.height);
             drawGrid();
 
-            // Spawn Zombies
-            if (frame % 400 === 0) {
+            // Spawn Zombies (Ramp up difficulty slightly over time)
+            let spawnRate = Math.max(100, 400 - Math.floor(frame / 50)); 
+            if (frame % spawnRate === 0) {
                 let randomLane = Math.floor(Math.random() * 5) * cellSize;
-                zombies.push(new Zombie(randomLane));
+                // 30% chance to spawn the Stripped-Screw Mechanic tank
+                let type = Math.random() < 0.3 ? 'mechanic' : 'shuffler'; 
+                zombies.push(new Zombie(randomLane, type));
             }
 
             // Update & Draw Plants
@@ -220,7 +283,7 @@
                     if (projectiles[i] && zombies[j] &&
                         projectiles[i].x < zombies[j].x + zombies[j].width &&
                         projectiles[i].x + projectiles[i].width > zombies[j].x &&
-                        projectiles[i].y > zombies[j].y && projectiles[i].y < zombies[j].y + zombies[j].height) {
+                        projectiles[i].y > zombies[j].y - 20 && projectiles[i].y < zombies[j].y + zombies[j].height) {
                         
                         zombies[j].health -= projectiles[i].damage;
                         projectiles.splice(i, 1);
@@ -251,7 +314,7 @@
                         zombie.y === plants[j].y) {
                         
                         isEating = true;
-                        plants[j].health -= 0.5;
+                        plants[j].health -= 0.5; // Damage dealt to plants
                         if (plants[j].health <= 0) {
                             plants.splice(j, 1);
                         }

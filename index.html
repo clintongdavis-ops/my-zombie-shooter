@@ -1,339 +1,1587 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <title>Backyard Defense Prototype v2</title>
-    <style>
-        body {
-            background-color: #2c3e50;
-            color: #ecf0f1;
-            font-family: Arial, sans-serif;
-            text-align: center;
-            margin: 0;
-            padding: 20px;
-        }
-        canvas {
-            background-color: #27ae60;
-            border: 4px solid #2ecc71;
-            box-shadow: 0 0 20px rgba(0,0,0,0.5);
-            cursor: pointer;
-        }
-        .ui-bar {
-            margin-bottom: 15px;
-            font-size: 18px;
-            font-weight: bold;
-        }
-        button {
-            background-color: #34495e;
-            color: white;
-            border: 2px solid transparent;
-            padding: 8px 15px;
-            font-size: 16px;
-            cursor: pointer;
-            border-radius: 5px;
-            margin: 0 5px;
-            transition: 0.2s;
-        }
-        button:hover {
-            background-color: #3d566e;
-        }
-        button.active {
-            border-color: #f1c40f;
-            background-color: #f39c12;
-        }
-        #energy-display {
-            color: #f1c40f;
-            margin-right: 15px;
-        }
-    </style>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>Le Salon Dieppe - 3D Virtual Salon & Receptionist Training Simulation</title>
+<!-- Three.js CDN -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; user-select: none; font-family: 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; }
+  body, html { width: 100%; height: 100%; overflow: hidden; background: #0f172a; color: #fff; }
+  #canvas-container { width: 100%; height: 100%; position: absolute; left: 0; top: 0; z-index: 1; }
+  canvas { width: 100%; height: 100%; display: block; }
+  #ui-layer { position: absolute; left: 0; top: 0; width: 100%; height: 100%; pointer-events: none; z-index: 10; }
+  .interactive { pointer-events: auto; }
+
+  /* Intro Screen */
+  #intro-screen {
+    position: absolute; left: 0; top: 0; width: 100%; height: 100%;
+    background: radial-gradient(circle at center, rgba(30, 20, 45, 0.92) 0%, rgba(10, 10, 20, 0.98) 100%);
+    display: flex; flex-direction: column; align-items: center; justify-content: space-between;
+    padding: 20px; z-index: 50; transition: opacity 0.5s ease, visibility 0.5s;
+  }
+  #intro-screen.hidden { opacity: 0; visibility: hidden; pointer-events: none; }
+  .intro-header { text-align: center; margin-top: 5px; }
+  .intro-title { font-size: 2.3rem; font-weight: 900; letter-spacing: 2px; text-transform: uppercase; background: linear-gradient(135deg, #ff9a9e 0%, #fecfef 50%, #a1c4fd 100%); -webkit-background-clip: text; -webkit-text-fill-color: transparent; filter: drop-shadow(0 4px 12px rgba(255,154,158,0.4)); }
+  .intro-subtitle { font-size: 1.0rem; color: #cbd5e1; margin-top: 4px; font-weight: 600; }
+  .intro-location { font-size: 0.8rem; color: #94a3b8; margin-top: 2px; letter-spacing: 1px; }
+
+  .customizer-container {
+    display: flex; width: 92%; max-width: 980px; height: 65vh; max-height: 520px;
+    background: rgba(255,255,255,0.06); backdrop-filter: blur(16px);
+    border-radius: 20px; border: 1px solid rgba(255,255,255,0.15);
+    box-shadow: 0 20px 50px rgba(0,0,0,0.6); overflow: hidden; margin: 10px 0;
+  }
+  .preview-panel {
+    flex: 1.1; position: relative; display: flex; align-items: center; justify-content: center;
+    background: radial-gradient(circle, rgba(255,255,255,0.08) 0%, rgba(15,23,42,0.6) 100%);
+  }
+  #preview-canvas-container { width: 100%; height: 100%; position: absolute; }
+  .preview-hint { position: absolute; bottom: 12px; font-size: 0.75rem; color: #cbd5e1; background: rgba(0,0,0,0.6); padding: 5px 12px; border-radius: 12px; pointer-events: none; }
+
+  .controls-panel {
+    flex: 1.3; padding: 20px; display: flex; flex-direction: column; gap: 14px;
+    overflow-y: auto; background: rgba(15, 23, 42, 0.4);
+  }
+  .custom-section-title { font-size: 0.8rem; font-weight: 700; text-transform: uppercase; letter-spacing: 1px; color: #f472b6; margin-bottom: 6px; }
+  .option-group { display: flex; flex-wrap: wrap; gap: 7px; }
+  .opt-btn {
+    background: rgba(255,255,255,0.08); border: 1px solid rgba(255,255,255,0.15);
+    color: #e2e8f0; padding: 6px 12px; border-radius: 9px; font-size: 0.8rem;
+    font-weight: 600; cursor: pointer; transition: all 0.2s ease;
+  }
+  .opt-btn:hover { background: rgba(255,255,255,0.2); transform: translateY(-1px); }
+  .opt-btn.active { background: linear-gradient(135deg, #ec4899, #8b5cf6); border-color: #f472b6; color: #fff; box-shadow: 0 4px 10px rgba(236,72,153,0.4); }
+
+  .color-swatch-group { display: flex; flex-wrap: wrap; gap: 7px; }
+  .color-swatch {
+    width: 30px; height: 30px; border-radius: 50%; cursor: pointer;
+    border: 2px solid rgba(255,255,255,0.3); transition: transform 0.2s, border-color 0.2s;
+  }
+  .color-swatch:hover { transform: scale(1.15); }
+  .color-swatch.active { border-color: #fff; box-shadow: 0 0 0 3px #ec4899; transform: scale(1.1); }
+
+  .play-btn {
+    background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+    color: #fff; border: none; padding: 12px 42px; border-radius: 30px;
+    font-size: 1.15rem; font-weight: 800; cursor: pointer; letter-spacing: 1px;
+    box-shadow: 0 8px 24px rgba(16,185,129,0.4); transition: all 0.25s ease;
+    display: flex; align-items: center; gap: 8px;
+  }
+  .play-btn:hover { transform: scale(1.04); box-shadow: 0 12px 28px rgba(16,185,129,0.6); background: linear-gradient(135deg, #34d399 0%, #10b981 100%); }
+
+  /* In-Game HUD */
+  #hud { position: absolute; left: 0; top: 0; width: 100%; height: 100%; pointer-events: none; }
+  .hud-top-bar {
+    position: absolute; top: 16px; left: 16px; right: 16px; display: flex;
+    justify-content: space-between; align-items: flex-start;
+  }
+  .hud-card {
+    background: rgba(15, 23, 42, 0.85); backdrop-filter: blur(12px);
+    border: 1px solid rgba(255,255,255,0.15); padding: 10px 18px;
+    border-radius: 14px; box-shadow: 0 8px 24px rgba(0,0,0,0.4);
+  }
+  .quest-box { max-width: 360px; }
+  .quest-badge { display: inline-block; background: #ec4899; color: #fff; font-size: 0.65rem; font-weight: 800; padding: 2px 7px; border-radius: 6px; text-transform: uppercase; margin-bottom: 4px; }
+  .quest-desc { font-size: 0.85rem; font-weight: 600; color: #f8fafc; line-height: 1.3; }
+
+  .hud-actions { display: flex; gap: 8px; }
+  .hud-btn {
+    background: rgba(30, 41, 59, 0.85); border: 1px solid rgba(255,255,255,0.2);
+    color: #f1f5f9; padding: 8px 14px; border-radius: 10px; font-size: 0.8rem;
+    font-weight: 600; cursor: pointer; pointer-events: auto; transition: all 0.2s;
+  }
+  .hud-btn:hover { background: rgba(51, 65, 85, 0.95); transform: translateY(-2px); }
+
+  #music-indicator {
+    position: absolute; top: 80px; left: 16px; font-size: 0.75rem; color: #a7f3d0;
+    background: rgba(6, 78, 59, 0.8); border: 1px solid #10b981; padding: 4px 10px;
+    border-radius: 8px; display: none; align-items: center; gap: 6px;
+  }
+
+  #interaction-prompt {
+    position: absolute; bottom: 90px; left: 50%; transform: translateX(-50%);
+    background: linear-gradient(135deg, rgba(236,72,153,0.95), rgba(139,92,246,0.95));
+    backdrop-filter: blur(10px); padding: 12px 26px; border-radius: 30px;
+    color: #fff; font-weight: 700; font-size: 0.95rem; box-shadow: 0 10px 25px rgba(236,72,153,0.5);
+    display: none; align-items: center; gap: 12px; pointer-events: auto; cursor: pointer;
+    animation: bounce 1.2s infinite alternate ease-in-out;
+  }
+  @keyframes bounce { 0% { transform: translate(-50%, 0); } 100% { transform: translate(-50%, -8px); } }
+  .prompt-key {
+    background: #fff; color: #831843; padding: 4px 10px; border-radius: 8px;
+    font-size: 0.85rem; font-weight: 900; box-shadow: 0 2px 6px rgba(0,0,0,0.2);
+  }
+
+  /* Role Reversal Alert */
+  #role-reversal-alert {
+    position: absolute; top: 15%; left: 50%; transform: translate(-50%, -50%) scale(0.8);
+    background: linear-gradient(135deg, #ec4899, #8b5cf6); padding: 16px 36px;
+    border-radius: 20px; box-shadow: 0 15px 40px rgba(236,72,153,0.6);
+    text-align: center; z-index: 100; opacity: 0; pointer-events: none;
+    transition: all 0.5s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+  }
+  #role-reversal-alert.show { opacity: 1; transform: translate(-50%, -50%) scale(1); }
+  .rr-tag { font-size: 0.8rem; font-weight: 800; letter-spacing: 2px; text-transform: uppercase; color: #fdf2f8; }
+  .rr-title { font-size: 1.6rem; font-weight: 900; color: #fff; text-shadow: 0 2px 10px rgba(0,0,0,0.3); }
+
+  /* Booking POS / Training Modal */
+  #booking-modal {
+    position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%) scale(0.95);
+    width: 94%; max-width: 1120px; height: 88vh; max-height: 740px;
+    background: rgba(15, 23, 42, 0.97); backdrop-filter: blur(20px);
+    border: 1px solid rgba(255,255,255,0.15); border-radius: 24px;
+    box-shadow: 0 25px 60px rgba(0,0,0,0.8); display: none; flex-direction: column;
+    z-index: 90; opacity: 0; transition: all 0.3s ease; pointer-events: auto; overflow: hidden;
+  }
+  #booking-modal.active { display: flex; opacity: 1; transform: translate(-50%, -50%) scale(1); }
+  
+  .modal-header {
+    background: rgba(30, 41, 59, 0.85); border-bottom: 1px solid rgba(255,255,255,0.1);
+    padding: 14px 22px; display: flex; justify-content: space-between; align-items: center;
+  }
+  .modal-title-wrap { display: flex; align-items: center; gap: 12px; }
+  .modal-icon { width: 36px; height: 36px; background: linear-gradient(135deg, #ec4899, #8b5cf6); border-radius: 10px; display: flex; align-items: center; justify-content: center; font-size: 1.1rem; }
+  .modal-title { font-size: 1.15rem; font-weight: 800; color: #fff; }
+  .modal-badge { font-size: 0.7rem; background: rgba(236,72,153,0.25); color: #f472b6; border: 1px solid #ec4899; padding: 2px 8px; border-radius: 6px; font-weight: 700; }
+  .close-modal-btn {
+    background: rgba(255,255,255,0.1); border: none; color: #cbd5e1; width: 34px; height: 34px;
+    border-radius: 50%; font-size: 1.1rem; cursor: pointer; transition: all 0.2s;
+  }
+  .close-modal-btn:hover { background: rgba(239,68,68,0.8); color: #fff; }
+
+  .modal-body { flex: 1; display: grid; grid-template-columns: 420px 1fr; overflow: hidden; position: relative; }
+
+  /* Left: Dialogue & Gemini Input */
+  .customer-panel {
+    background: rgba(15, 23, 42, 0.7); border-right: 1px solid rgba(255,255,255,0.08);
+    padding: 18px; display: flex; flex-direction: column; gap: 12px; overflow-y: auto;
+  }
+  .customer-card {
+    background: rgba(30, 41, 59, 0.7); border: 1px solid rgba(255,255,255,0.1);
+    border-radius: 14px; padding: 12px; display: flex; gap: 10px; align-items: center;
+  }
+  .cust-avatar {
+    width: 44px; height: 44px; border-radius: 12px; background: linear-gradient(135deg, #a855f7, #ec4899);
+    display: flex; align-items: center; justify-content: center; font-size: 1.4rem; flex-shrink: 0;
+  }
+  .cust-name { font-weight: 700; font-size: 0.9rem; color: #f8fafc; }
+  .cust-status { font-size: 0.7rem; color: #34d399; font-weight: 600; }
+
+  .speech-bubble {
+    background: rgba(51, 65, 85, 0.8); border: 1px solid rgba(255,255,255,0.15);
+    border-radius: 14px; border-top-left-radius: 4px; padding: 12px 14px;
+    font-size: 0.85rem; line-height: 1.45; color: #f1f5f9;
+  }
+  .speech-bubble-stage { font-size: 0.65rem; color: #f472b6; font-weight: 800; text-transform: uppercase; margin-bottom: 4px; }
+
+  /* Gemini Interactive Free-Text Input Box */
+  .gemini-input-card {
+    background: rgba(30, 41, 59, 0.9); border: 1px solid rgba(139,92,246,0.4);
+    border-radius: 14px; padding: 12px; display: flex; flex-direction: column; gap: 8px;
+    box-shadow: 0 4px 15px rgba(139,92,246,0.15);
+  }
+  .gemini-card-header { display: flex; justify-content: space-between; align-items: center; font-size: 0.75rem; font-weight: 700; color: #c084fc; }
+  .gemini-badge { background: linear-gradient(135deg, #8b5cf6, #ec4899); color: #fff; padding: 2px 6px; border-radius: 4px; font-size: 0.65rem; }
+  .gemini-textarea {
+    width: 100%; height: 60px; background: rgba(15, 23, 42, 0.8); border: 1px solid rgba(255,255,255,0.15);
+    border-radius: 8px; padding: 8px 10px; color: #fff; font-size: 0.82rem; resize: none; outline: none;
+    font-family: inherit; user-select: text;
+  }
+  .gemini-textarea:focus { border-color: #ec4899; box-shadow: 0 0 0 2px rgba(236,72,153,0.3); }
+  .gemini-send-btn {
+    background: linear-gradient(135deg, #8b5cf6, #6366f1); color: #fff; border: none;
+    padding: 6px 12px; border-radius: 8px; font-size: 0.78rem; font-weight: 700; cursor: pointer;
+    align-self: flex-end; transition: all 0.2s;
+  }
+  .gemini-send-btn:hover { background: linear-gradient(135deg, #a855f7, #818cf8); }
+
+  .feedback-box {
+    background: rgba(16, 185, 129, 0.15); border: 1px solid #10b981; border-radius: 10px;
+    padding: 8px 12px; font-size: 0.75rem; color: #a7f3d0; display: none; line-height: 1.35;
+  }
+
+  .quick-options-label { font-size: 0.72rem; font-weight: 700; text-transform: uppercase; color: #94a3b8; letter-spacing: 0.5px; margin-top: 4px; }
+  .ans-option-btn {
+    background: rgba(255,255,255,0.06); border: 1px solid rgba(255,255,255,0.12);
+    color: #e2e8f0; padding: 8px 10px; border-radius: 10px; font-size: 0.78rem;
+    font-weight: 500; text-align: left; cursor: pointer; transition: all 0.2s;
+  }
+  .ans-option-btn:hover { background: rgba(236,72,153,0.25); border-color: #ec4899; color: #fff; }
+  .ans-option-btn.selected { background: linear-gradient(135deg, rgba(236,72,153,0.6), rgba(139,92,246,0.6)); border-color: #f472b6; color: #fff; }
+
+  /* Right: POS Terminal Tabs */
+  .terminal-panel { display: flex; flex-direction: column; overflow: hidden; background: rgba(30, 41, 59, 0.4); }
+  .terminal-tabs { display: flex; border-bottom: 1px solid rgba(255,255,255,0.08); background: rgba(15, 23, 42, 0.5); }
+  .tab-btn {
+    flex: 1; padding: 12px 14px; background: transparent; border: none;
+    color: #94a3b8; font-size: 0.82rem; font-weight: 700; cursor: pointer;
+    transition: all 0.2s; border-bottom: 2px solid transparent; text-align: center;
+  }
+  .tab-btn:hover { color: #f1f5f9; background: rgba(255,255,255,0.03); }
+  .tab-btn.active { color: #f472b6; border-bottom-color: #ec4899; background: rgba(236,72,153,0.12); }
+
+  .tab-content { flex: 1; overflow-y: auto; padding: 18px; display: none; }
+  .tab-content.active { display: block; }
+
+  .context-filter-banner {
+    background: rgba(236,72,153,0.15); border: 1px solid rgba(236,72,153,0.35);
+    border-radius: 10px; padding: 8px 12px; font-size: 0.75rem; color: #fbcfe8;
+    margin-bottom: 14px; display: flex; justify-content: space-between; align-items: center;
+  }
+
+  .booking-form-wrap { max-width: 580px; margin: 0 auto; display: flex; flex-direction: column; gap: 14px; }
+  .form-group { display: flex; flex-direction: column; gap: 5px; }
+  .form-label { font-size: 0.75rem; font-weight: 700; color: #cbd5e1; text-transform: uppercase; }
+  .form-select, .form-input {
+    background: rgba(15, 23, 42, 0.85); border: 1px solid rgba(255,255,255,0.15);
+    border-radius: 10px; padding: 10px 12px; color: #fff; font-size: 0.85rem; outline: none;
+  }
+  .pricing-summary {
+    background: rgba(15, 23, 42, 0.85); border: 1px solid rgba(255,255,255,0.12);
+    border-radius: 14px; padding: 14px; display: flex; flex-direction: column; gap: 6px;
+  }
+  .price-row { display: flex; justify-content: space-between; font-size: 0.82rem; color: #94a3b8; }
+  .price-row.total { border-top: 1px solid rgba(255,255,255,0.1); padding-top: 6px; font-size: 1.05rem; font-weight: 800; color: #34d399; }
+
+  .confirm-booking-btn {
+    background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+    color: #fff; border: none; padding: 12px; border-radius: 12px;
+    font-size: 0.95rem; font-weight: 800; cursor: pointer; text-align: center;
+    box-shadow: 0 6px 18px rgba(16,185,129,0.35); transition: all 0.2s;
+  }
+  .confirm-booking-btn:hover { transform: translateY(-2px); background: linear-gradient(135deg, #34d399 0%, #10b981 100%); }
+
+  /* Virtual Receptionist Face in Bottom Right of Screen */
+  #virtual-receptionist-widget {
+    position: absolute; right: 20px; bottom: 18px; display: flex; align-items: center; gap: 10px;
+    background: rgba(15, 23, 42, 0.9); backdrop-filter: blur(12px);
+    border: 2px solid #ec4899; border-radius: 40px; padding: 6px 14px 6px 6px;
+    box-shadow: 0 10px 25px rgba(236,72,153,0.4); pointer-events: auto; z-index: 105;
+  }
+  .rec-avatar-face {
+    width: 48px; height: 48px; border-radius: 50%; background: linear-gradient(135deg, #f472b6, #8b5cf6);
+    display: flex; align-items: center; justify-content: center; font-size: 1.5rem;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.3); position: relative; overflow: hidden;
+  }
+  .rec-avatar-face::after {
+    content: '😊'; font-size: 1.5rem; animation: pulseFace 2s infinite ease-in-out;
+  }
+  @keyframes pulseFace { 0%, 100% { transform: scale(1); } 50% { transform: scale(1.08); } }
+  .rec-info-col { display: flex; flex-direction: column; }
+  .rec-name-tag { font-size: 0.8rem; font-weight: 800; color: #fff; }
+  .rec-role-tag { font-size: 0.65rem; color: #f472b6; font-weight: 600; }
+  .rec-feedback-pill { font-size: 0.65rem; color: #34d399; font-weight: 700; margin-top: 1px; }
+
+  /* Receipt Modal */
+  #ticket-modal {
+    position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%);
+    width: 90%; max-width: 460px; background: #fff; color: #0f172a;
+    border-radius: 20px; box-shadow: 0 25px 60px rgba(0,0,0,0.8);
+    display: none; flex-direction: column; padding: 22px; z-index: 120;
+  }
+  .ticket-header { text-align: center; border-bottom: 2px dashed #e2e8f0; padding-bottom: 14px; margin-bottom: 14px; }
+  .ticket-logo { font-size: 1.3rem; font-weight: 900; color: #db2777; }
+  .ticket-rating { font-size: 1.3rem; color: #fbbf24; margin: 6px 0; }
+  .ticket-row { display: flex; justify-content: space-between; margin-bottom: 7px; font-size: 0.82rem; }
+  .ticket-total { border-top: 2px solid #0f172a; padding-top: 8px; margin-top: 8px; font-size: 1.1rem; font-weight: 900; color: #059669; }
+  .ticket-btn {
+    background: #0f172a; color: #fff; border: none; padding: 12px;
+    border-radius: 12px; font-size: 0.9rem; font-weight: 700; cursor: pointer; margin-top: 14px;
+  }
+
+  /* Catalog and Staff directory */
+  .catalog-search-bar { display: flex; gap: 8px; margin-bottom: 12px; }
+  .search-input {
+    flex: 1; background: rgba(15, 23, 42, 0.8); border: 1px solid rgba(255,255,255,0.15);
+    border-radius: 8px; padding: 8px 12px; color: #fff; font-size: 0.82rem; outline: none;
+  }
+  .service-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 10px; }
+  .service-card {
+    background: rgba(15, 23, 42, 0.6); border: 1px solid rgba(255,255,255,0.08);
+    border-radius: 12px; padding: 12px; display: flex; flex-direction: column;
+    justify-content: space-between; cursor: pointer; transition: all 0.2s;
+  }
+  .service-card:hover { border-color: #f472b6; background: rgba(30, 41, 59, 0.7); }
+  .service-name { font-weight: 700; font-size: 0.85rem; color: #f8fafc; margin-bottom: 2px; }
+  .service-cat { font-size: 0.65rem; color: #f472b6; font-weight: 600; text-transform: uppercase; margin-bottom: 6px; }
+  .service-meta { display: flex; justify-content: space-between; align-items: center; border-top: 1px solid rgba(255,255,255,0.06); padding-top: 6px; }
+  .service-price { font-size: 0.95rem; font-weight: 800; color: #34d399; }
+  .service-dur { font-size: 0.7rem; color: #cbd5e1; background: rgba(255,255,255,0.1); padding: 2px 6px; border-radius: 4px; }
+
+  .staff-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 12px; }
+  .staff-card {
+    background: rgba(15, 23, 42, 0.6); border: 1px solid rgba(255,255,255,0.08);
+    border-radius: 12px; padding: 12px; display: flex; align-items: center; gap: 10px;
+  }
+  .staff-badge-icon {
+    width: 38px; height: 38px; border-radius: 50%; background: linear-gradient(135deg, #ec4899, #8b5cf6);
+    display: flex; align-items: center; justify-content: center; font-size: 1.0rem; font-weight: 800; flex-shrink: 0;
+  }
+  .staff-name { font-weight: 700; font-size: 0.85rem; color: #f8fafc; }
+  .staff-title { font-size: 0.7rem; color: #c084fc; font-weight: 600; }
+
+  #controls-overlay {
+    position: absolute; bottom: 16px; left: 16px; background: rgba(15,23,42,0.75);
+    backdrop-filter: blur(8px); padding: 8px 14px; border-radius: 10px;
+    font-size: 0.75rem; color: #94a3b8; border: 1px solid rgba(255,255,255,0.1);
+  }
+  .key-badge { background: rgba(255,255,255,0.15); color: #f1f5f9; padding: 2px 6px; border-radius: 4px; font-weight: 700; }
+
+  @media (max-width: 768px) {
+    .customizer-container { flex-direction: column; max-height: 80vh; }
+    .preview-panel { min-height: 180px; }
+    .modal-body { grid-template-columns: 1fr; }
+    .customer-panel { max-height: 280px; }
+  }
+</style>
 </head>
 <body>
 
-    <div class="ui-bar">
-        <span id="energy-display">☀️ Energy: 300</span>
-        <button id="btn-seedling" class="active" onclick="selectPlant('seedling')">🌱 Indoor Seedling (50)</button>
-        <button id="btn-beatboxer" onclick="selectPlant('beatboxer')">📻 Boom Bap Beatboxer (100)</button>
-        <button id="btn-flinger" onclick="selectPlant('flinger')">🌳 Fruit Tree Flinger (150)</button>
+<div id="canvas-container"></div>
+
+<div id="ui-layer">
+  <!-- Intro Screen & Customizer -->
+  <div id="intro-screen" class="interactive">
+    <div class="intro-header">
+      <h1 class="intro-title">Le Salon Dieppe</h1>
+      <p class="intro-subtitle">3D Roblox-Style Virtual Salon & Receptionist Training Simulation</p>
+      <p class="intro-location">📍 140 Canaan Dr, Dieppe, NB | LSD Beauty</p>
     </div>
 
-    <canvas id="gameCanvas" width="900" height="500"></canvas>
+    <div class="customizer-container">
+      <div class="preview-panel">
+        <div id="preview-canvas-container"></div>
+        <div class="preview-hint">Drag avatar to rotate 360°</div>
+      </div>
+      <div class="controls-panel">
+        <div>
+          <div class="custom-section-title">1. Avatar Gender</div>
+          <div class="option-group" id="gender-options">
+            <button class="opt-btn active" data-val="female">Female</button>
+            <button class="opt-btn" data-val="male">Male</button>
+            <button class="opt-btn" data-val="unisex">Non-Binary</button>
+          </div>
+        </div>
 
-    <script>
-        const canvas = document.getElementById('gameCanvas');
-        const ctx = canvas.getContext('2d');
-        const cellSize = 100;
-        
-        let energy = 300; // Boosted starting energy for testing
-        let frame = 0;
-        let selectedPlant = 'seedling';
-        let gameOver = false;
+        <div>
+          <div class="custom-section-title">2. Skin Tone</div>
+          <div class="color-swatch-group" id="skin-options">
+            <div class="color-swatch active" style="background:#ffd1b3" data-val="#ffd1b3" title="Fair"></div>
+            <div class="color-swatch" style="background:#f5c6a5" data-val="#f5c6a5" title="Peach"></div>
+            <div class="color-swatch" style="background:#e0ac69" data-val="#e0ac69" title="Warm Tan"></div>
+            <div class="color-swatch" style="background:#c68642" data-val="#c68642" title="Caramel"></div>
+            <div class="color-swatch" style="background:#8d5524" data-val="#8d5524" title="Deep Bronze"></div>
+            <div class="color-swatch" style="background:#4a2f18" data-val="#4a2f18" title="Rich Dark"></div>
+          </div>
+        </div>
 
-        const plants = [];
-        const zombies = [];
-        const projectiles = [];
+        <div>
+          <div class="custom-section-title">3. Hair Style</div>
+          <div class="option-group" id="hair-style-options">
+            <button class="opt-btn active" data-val="long">Long Wavy</button>
+            <button class="opt-btn" data-val="bob">Chic Bob</button>
+            <button class="opt-btn" data-val="ponytail">Ponytail</button>
+            <button class="opt-btn" data-val="afro">Afro Curls</button>
+            <button class="opt-btn" data-val="bun">High Bun</button>
+            <button class="opt-btn" data-val="buzz">Buzz Cut</button>
+            <button class="opt-btn" data-val="spiky">Spiky</button>
+          </div>
+        </div>
 
-        // Update UI
-        function updateUI() {
-            document.getElementById('energy-display').innerText = `☀️ Energy: ${energy}`;
-            document.getElementById('btn-seedling').className = selectedPlant === 'seedling' ? 'active' : '';
-            document.getElementById('btn-beatboxer').className = selectedPlant === 'beatboxer' ? 'active' : '';
-            document.getElementById('btn-flinger').className = selectedPlant === 'flinger' ? 'active' : '';
-        }
+        <div>
+          <div class="custom-section-title">4. Hair Color</div>
+          <div class="color-swatch-group" id="hair-color-options">
+            <div class="color-swatch active" style="background:#221511" data-val="#221511" title="Espresso"></div>
+            <div class="color-swatch" style="background:#5a3825" data-val="#5a3825" title="Warm Brown"></div>
+            <div class="color-swatch" style="background:#e6be8a" data-val="#e6be8a" title="Golden Blonde"></div>
+            <div class="color-swatch" style="background:#993d28" data-val="#993d28" title="Auburn"></div>
+            <div class="color-swatch" style="background:#f472b6" data-val="#f472b6" title="Pastel Pink"></div>
+            <div class="color-swatch" style="background:#e2e8f0" data-val="#e2e8f0" title="Platinum"></div>
+            <div class="color-swatch" style="background:#3b82f6" data-val="#3b82f6" title="Vibrant Blue"></div>
+          </div>
+        </div>
 
-        function selectPlant(type) {
-            selectedPlant = type;
-            updateUI();
-        }
+        <div>
+          <div class="custom-section-title">5. Top & Pants Outfit</div>
+          <div style="display:flex; gap:16px;">
+            <div style="flex:1">
+              <span style="font-size:0.75rem; color:#94a3b8">Top</span>
+              <div class="color-swatch-group" id="top-color-options" style="margin-top:4px">
+                <div class="color-swatch active" style="background:#ec4899" data-val="#ec4899"></div>
+                <div class="color-swatch" style="background:#8b5cf6" data-val="#8b5cf6"></div>
+                <div class="color-swatch" style="background:#3b82f6" data-val="#3b82f6"></div>
+                <div class="color-swatch" style="background:#10b981" data-val="#10b981"></div>
+                <div class="color-swatch" style="background:#0f172a" data-val="#0f172a"></div>
+                <div class="color-swatch" style="background:#ffffff" data-val="#ffffff"></div>
+              </div>
+            </div>
+            <div style="flex:1">
+              <span style="font-size:0.75rem; color:#94a3b8">Pants</span>
+              <div class="color-swatch-group" id="bottom-color-options" style="margin-top:4px">
+                <div class="color-swatch active" style="background:#1e293b" data-val="#1e293b"></div>
+                <div class="color-swatch" style="background:#3b82f6" data-val="#3b82f6"></div>
+                <div class="color-swatch" style="background:#475569" data-val="#475569"></div>
+                <div class="color-swatch" style="background:#ffffff" data-val="#ffffff"></div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
 
-        // Draw the Front Yard Grid
-        function drawGrid() {
-            for (let y = 0; y < canvas.height; y += cellSize) {
-                for (let x = 0; x < canvas.width; x += cellSize) {
-                    ctx.strokeStyle = 'rgba(0, 0, 0, 0.1)';
-                    ctx.strokeRect(x, y, cellSize, cellSize);
-                }
-            }
-        }
+    <button id="start-game-btn" class="play-btn">
+      <span>ENTER DIEPPE SALON</span>
+      <span>✨</span>
+    </button>
+  </div>
 
-        // Classes
-        class Plant {
-            constructor(x, y, type) {
-                this.x = x;
-                this.y = y;
-                this.width = cellSize;
-                this.height = cellSize;
-                this.type = type;
-                this.health = 100;
-                
-                if (type === 'seedling') {
-                    this.cost = 50;
-                    this.symbol = '🌱';
-                } else if (type === 'beatboxer') {
-                    this.cost = 100;
-                    this.symbol = '📻';
-                } else if (type === 'flinger') {
-                    this.cost = 150;
-                    this.symbol = '🌳';
-                    this.health = 150; // Trees are slightly tougher
-                }
-            }
-            draw() {
-                ctx.font = '50px Arial';
-                ctx.fillText(this.symbol, this.x + 20, this.y + 70);
-                
-                // Draw Health Bar
-                ctx.fillStyle = 'red';
-                ctx.fillRect(this.x + 20, this.y + 85, 60, 5);
-                ctx.fillStyle = '#2ecc71';
-                let maxHealth = this.type === 'flinger' ? 150 : 100;
-                ctx.fillRect(this.x + 20, this.y + 85, 60 * (this.health / maxHealth), 5);
-            }
-            update() {
-                if (this.type === 'seedling' && frame % 300 === 0) {
-                    energy += 25; // Generates energy
-                }
-                
-                // Beatboxer shoots fast, low damage
-                if (this.type === 'beatboxer' && frame % 100 === 0) {
-                    let zombieInLane = zombies.some(z => z.y === this.y && z.x > this.x);
-                    if (zombieInLane) {
-                        projectiles.push(new Projectile(this.x + 60, this.y + 35, 'music'));
-                    }
-                }
+  <!-- HUD -->
+  <div id="hud">
+    <div class="hud-top-bar">
+      <div class="hud-card quest-box">
+        <span class="quest-badge">Training Mission</span>
+        <div id="quest-text" class="quest-desc">Walk into Le Salon Dieppe (140 Canaan Dr) and approach Receptionist Jazzlyn to begin client training.</div>
+      </div>
+      <div class="hud-actions">
+        <button id="btn-audio" class="hud-btn">🎵 Audio: ON</button>
+        <button id="btn-camera" class="hud-btn">📷 View: 3rd</button>
+      </div>
+    </div>
 
-                // Flinger shoots slow, high damage heavy fruit
-                if (this.type === 'flinger' && frame % 180 === 0) {
-                    let zombieInLane = zombies.some(z => z.y === this.y && z.x > this.x);
-                    if (zombieInLane) {
-                        projectiles.push(new Projectile(this.x + 60, this.y + 20, 'fruit'));
-                    }
-                }
-            }
-        }
+    <div id="music-indicator">
+      <span>🎵 Salon Electronic Lounge Active</span>
+    </div>
 
-        class Projectile {
-            constructor(x, y, type) {
-                this.x = x;
-                this.y = y;
-                this.type = type;
-                
-                if (type === 'music') {
-                    this.width = 30;
-                    this.height = 30;
-                    this.speed = 5;
-                    this.damage = 20;
-                    this.symbol = '🎵';
-                } else if (type === 'fruit') {
-                    this.width = 40;
-                    this.height = 40;
-                    this.speed = 4;
-                    this.damage = 60; // 3x damage for the heavy hitter
-                    this.symbol = '🍎';
-                }
-            }
-            draw() {
-                ctx.font = this.type === 'fruit' ? '40px Arial' : '30px Arial';
-                ctx.fillText(this.symbol, this.x, this.y + 30);
-            }
-            update() {
-                this.x += this.speed;
-                // Add a slight spin/bounce effect to the fruit visually
-                if(this.type === 'fruit') {
-                    this.y += Math.sin(this.x * 0.1) * 2; 
-                }
-            }
-        }
+    <div id="interaction-prompt" class="interactive">
+      <span class="prompt-key">E</span>
+      <span>Talk to Receptionist Jazzlyn</span>
+    </div>
 
-        class Zombie {
-            constructor(y, type) {
-                this.x = canvas.width;
-                this.y = y;
-                this.width = cellSize;
-                this.height = cellSize;
-                this.type = type;
-                
-                if (type === 'shuffler') {
-                    this.speed = 0.5;
-                    this.health = 100;
-                    this.maxHealth = 100;
-                    this.symbol = '🧟';
-                } else if (type === 'mechanic') {
-                    this.speed = 0.3; // Much slower
-                    this.health = 300; // Tank health
-                    this.maxHealth = 300;
-                    this.symbol = '👷'; // Construction worker/mechanic proxy
-                }
-            }
-            draw() {
-                ctx.font = '50px Arial';
-                ctx.fillText(this.symbol, this.x + 20, this.y + 70);
-                
-                // Draw Shield/Health Bar
-                ctx.fillStyle = 'red';
-                ctx.fillRect(this.x + 20, this.y - 10, 60, 5);
-                ctx.fillStyle = this.type === 'mechanic' ? '#95a5a6' : '#e74c3c'; // Grey bar for mechanic's shield
-                ctx.fillRect(this.x + 20, this.y - 10, 60 * (this.health / this.maxHealth), 5);
-            }
-            update() {
-                this.x -= this.speed;
-                if (this.x < 0) {
-                    gameOver = true;
-                }
-            }
-        }
+    <div id="controls-overlay">
+      <span class="key-badge">W,A,S,D</span> Move &nbsp;|&nbsp;
+      <span class="key-badge">SPACE</span> Jump &nbsp;|&nbsp;
+      <span class="key-badge">SHIFT</span> Sprint &nbsp;|&nbsp;
+      <span class="key-badge">MOUSE</span> Look &nbsp;|&nbsp;
+      <span class="key-badge">E</span> Talk
+    </div>
+  </div>
 
-        // Mouse Click to Plant
-        canvas.addEventListener('click', function(e) {
-            const rect = canvas.getBoundingClientRect();
-            const mouseX = e.clientX - rect.left;
-            const mouseY = e.clientY - rect.top;
-            
-            const gridX = Math.floor(mouseX / cellSize) * cellSize;
-            const gridY = Math.floor(mouseY / cellSize) * cellSize;
+  <!-- Role Reversal Banner -->
+  <div id="role-reversal-alert">
+    <div class="rr-tag">✨ Role Reversal Active! ✨</div>
+    <div class="rr-title">YOU ARE NOW THE RECEPTIONIST</div>
+    <p style="font-size:0.85rem; color:#fdf2f8; margin-top:3px;">Answer the client as Front of House staff to complete the booking.</p>
+  </div>
 
-            // Check if cell is empty
-            if (plants.some(p => p.x === gridX && p.y === gridY)) return;
+  <!-- POS Booking & Gemini Training Modal -->
+  <div id="booking-modal">
+    <div class="modal-header">
+      <div class="modal-title-wrap">
+        <div class="modal-icon">💼</div>
+        <div>
+          <div class="modal-title">Le Salon Dieppe • Receptionist Training POS</div>
+          <div class="modal-badge">Staff Training Mode Active</div>
+        </div>
+      </div>
+      <button class="close-modal-btn" id="close-booking-modal">&times;</button>
+    </div>
 
-            let cost = 50;
-            if (selectedPlant === 'beatboxer') cost = 100;
-            if (selectedPlant === 'flinger') cost = 150;
+    <div class="modal-body">
+      <!-- Left: Dialogue & Gemini Input -->
+      <div class="customer-panel">
+        <div class="customer-card">
+          <div class="cust-avatar">👤</div>
+          <div>
+            <div class="cust-name">Walk-In Client (Your Character)</div>
+            <div class="cust-status">● Asking at Reception Desk</div>
+          </div>
+        </div>
 
-            if (energy >= cost) {
-                plants.push(new Plant(gridX, gridY, selectedPlant));
-                energy -= cost;
-            }
-        });
+        <div>
+          <div class="speech-bubble-stage" id="dialogue-stage-badge">Stage 1: Initial Service Inquiry</div>
+          <div class="speech-bubble" id="customer-dialogue-text">
+            "Hi! I have shoulder-length hair and want a wash, cut, and blow dry. How much is that and which master stylist is available?"
+          </div>
+        </div>
 
-        // Main Game Loop
-        function animate() {
-            if (gameOver) {
-                ctx.fillStyle = 'rgba(0,0,0,0.7)';
-                ctx.fillRect(0,0, canvas.width, canvas.height);
-                ctx.fillStyle = 'white';
-                ctx.font = '60px Arial';
-                ctx.fillText('ZOMBIES ATE YOUR BRAINS!', 50, canvas.height/2);
-                return;
-            }
+        <!-- Gemini-Style Free Text Input Box -->
+        <div class="gemini-input-card">
+          <div class="gemini-card-header">
+            <span>✨ Gemini Staff Trainer (Natural Chat Input)</span>
+            <span class="gemini-badge">AI Evaluator</span>
+          </div>
+          <textarea id="gemini-chat-input" class="gemini-textarea" placeholder="Type your natural response as the receptionist (e.g. 'Hi! For shoulder length hair that is our Medium Cut & Style for $47 with Amber...')..."></textarea>
+          <button id="gemini-submit-btn" class="gemini-send-btn">Send & Evaluate Response</button>
+          <div id="gemini-feedback-box" class="feedback-box"></div>
+        </div>
 
-            ctx.clearRect(0, 0, canvas.width, canvas.height);
-            drawGrid();
+        <div class="quick-options-label">Or Choose Quick Response:</div>
+        <div id="dialogue-options-list" style="display:flex; flex-direction:column; gap:6px;"></div>
+      </div>
 
-            // Spawn Zombies (Ramp up difficulty slightly over time)
-            let spawnRate = Math.max(100, 400 - Math.floor(frame / 50)); 
-            if (frame % spawnRate === 0) {
-                let randomLane = Math.floor(Math.random() * 5) * cellSize;
-                // 30% chance to spawn the Stripped-Screw Mechanic tank
-                let type = Math.random() < 0.3 ? 'mechanic' : 'shuffler'; 
-                zombies.push(new Zombie(randomLane, type));
-            }
+      <!-- Right: POS Terminal Tabs -->
+      <div class="terminal-panel">
+        <div class="terminal-tabs">
+          <button class="tab-btn active" data-tab="booking-tab">📅 Appointment Form</button>
+          <button class="tab-btn" data-tab="catalog-tab">🔍 Services Catalogue (242)</button>
+          <button class="tab-btn" data-tab="staff-tab">👥 Team Directory (10)</button>
+        </div>
 
-            // Update & Draw Plants
-            for (let i = 0; i < plants.length; i++) {
-                plants[i].update();
-                plants[i].draw();
-            }
+        <!-- Booking Form Tab -->
+        <div class="tab-content active" id="booking-tab">
+          <div class="context-filter-banner" id="context-filter-notice">
+            <span>Showing relevant services for: <strong id="context-cat-name">Cuts & Style</strong></span>
+            <button id="show-all-services-btn" style="background:none; border:none; color:#38bdf8; cursor:pointer; font-weight:700; font-size:0.75rem;">Show All</button>
+          </div>
 
-            // Update & Draw Projectiles
-            for (let i = 0; i < projectiles.length; i++) {
-                projectiles[i].update();
-                projectiles[i].draw();
-                
-                // Collision with zombies
-                for (let j = 0; j < zombies.length; j++) {
-                    if (projectiles[i] && zombies[j] &&
-                        projectiles[i].x < zombies[j].x + zombies[j].width &&
-                        projectiles[i].x + projectiles[i].width > zombies[j].x &&
-                        projectiles[i].y > zombies[j].y - 20 && projectiles[i].y < zombies[j].y + zombies[j].height) {
-                        
-                        zombies[j].health -= projectiles[i].damage;
-                        projectiles.splice(i, 1);
-                        i--;
-                        
-                        if (zombies[j].health <= 0) {
-                            zombies.splice(j, 1);
-                        }
-                        break;
-                    }
-                }
-                
-                if (projectiles[i] && projectiles[i].x > canvas.width) {
-                    projectiles.splice(i, 1);
-                    i--;
-                }
-            }
+          <div class="booking-form-wrap">
+            <div class="form-group">
+              <label class="form-label">Selected Service</label>
+              <select id="form-service-select" class="form-select"></select>
+            </div>
 
-            // Update & Draw Zombies
-            for (let i = 0; i < zombies.length; i++) {
-                let zombie = zombies[i];
-                let isEating = false;
+            <div class="form-group">
+              <label class="form-label">Assign Specialist / Team Member</label>
+              <select id="form-staff-select" class="form-select"></select>
+            </div>
 
-                // Collision with plants
-                for (let j = 0; j < plants.length; j++) {
-                    if (zombie.x < plants[j].x + plants[j].width &&
-                        zombie.x + zombie.width > plants[j].x &&
-                        zombie.y === plants[j].y) {
-                        
-                        isEating = true;
-                        plants[j].health -= 0.5; // Damage dealt to plants
-                        if (plants[j].health <= 0) {
-                            plants.splice(j, 1);
-                        }
-                    }
-                }
+            <div style="display:flex; gap:10px;">
+              <div class="form-group" style="flex:1">
+                <label class="form-label">Time Slot</label>
+                <select id="form-time-select" class="form-select">
+                  <option value="10:00 AM">10:00 AM (Today)</option>
+                  <option value="11:30 AM">11:30 AM (Today)</option>
+                  <option value="01:15 PM">01:15 PM (Today)</option>
+                  <option value="02:45 PM">02:45 PM (Today)</option>
+                  <option value="04:00 PM">04:00 PM (Today)</option>
+                </select>
+              </div>
+              <div class="form-group" style="flex:1">
+                <label class="form-label">Client Hair / Esthetics Notes</label>
+                <input type="text" id="form-notes-input" class="form-input" placeholder="e.g. Medium length, patch test ok">
+              </div>
+            </div>
 
-                if (!isEating) {
-                    zombie.update();
-                }
-                zombie.draw();
-            }
+            <div class="pricing-summary">
+              <div class="price-row"><span>Base Service:</span><span id="summary-base-price">$0.00</span></div>
+              <div class="price-row"><span>Duration:</span><span id="summary-duration">0 min</span></div>
+              <div class="price-row"><span>HST Tax (15% NB):</span><span id="summary-tax">$0.00</span></div>
+              <div class="price-row total"><span>Total Due:</span><span id="summary-total">$0.00 CAD</span></div>
+            </div>
 
-            updateUI();
-            frame++;
-            requestAnimationFrame(animate);
-        }
+            <button id="submit-booking-btn" class="confirm-booking-btn">⚡ Complete Booking & Evaluate Performance</button>
+          </div>
+        </div>
 
-        // Start Game
-        animate();
-    </script>
+        <!-- Catalog Tab -->
+        <div class="tab-content" id="catalog-tab">
+          <div class="catalog-search-bar">
+            <input type="text" id="catalog-search" class="search-input" placeholder="Search 242 services (e.g. Cut, Wash, Lash, Gel, Wax, Laser)...">
+          </div>
+          <div class="service-grid" id="catalog-service-grid"></div>
+        </div>
+
+        <!-- Staff Tab -->
+        <div class="tab-content" id="staff-tab">
+          <div class="staff-grid" id="staff-directory-grid"></div>
+        </div>
+      </div>
+
+      <!-- Virtual Receptionist Face in Bottom Right -->
+      <div id="virtual-receptionist-widget">
+        <div class="rec-avatar-face"></div>
+        <div class="rec-info-col">
+          <span class="rec-name-tag">Jazzlyn (Front of House)</span>
+          <span class="rec-role-tag">Staff Trainer & Receptionist</span>
+          <span class="rec-feedback-pill" id="rec-widget-feedback">● Ready for Client</span>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Performance & Receipt Modal -->
+  <div id="ticket-modal" class="interactive">
+    <div class="ticket-header">
+      <div class="ticket-logo">LE SALON DIEPPE</div>
+      <div style="font-size:0.8rem; color:#64748b; margin-top:2px;">140 Canaan Dr #104, Dieppe, NB</div>
+      <div class="ticket-rating" id="t-stars">⭐⭐⭐⭐⭐</div>
+      <div style="font-size:0.95rem; font-weight:800; color:#059669" id="t-grade">Grade: A+ (Outstanding Service!)</div>
+    </div>
+
+    <div class="ticket-row"><span>Service Booked:</span><span id="t-service" style="font-weight:700">Classic Cut</span></div>
+    <div class="ticket-row"><span>Assigned Specialist:</span><span id="t-staff" style="font-weight:700">Amber Houston</span></div>
+    <div class="ticket-row"><span>Estimated Duration:</span><span id="t-dur">1h</span></div>
+    <div class="ticket-row"><span>Scheduled Time:</span><span id="t-time">Today @ 11:30 AM</span></div>
+    <div class="ticket-row" style="background:#f1f5f9; padding:6px 8px; border-radius:6px; margin:6px 0; font-size:0.78rem;">
+      <span style="color:#0369a1; font-weight:700">Trainer Feedback:</span>
+      <span id="t-feedback-text" style="color:#0f172a; text-align:right">Excellent matching of medium hair length and Master Stylist.</span>
+    </div>
+    <div class="ticket-row ticket-total"><span>Total (inc. 15% HST):</span><span id="t-total">$54.05 CAD</span></div>
+
+    <button class="ticket-btn" id="ticket-continue-btn">Continue Training & Explore</button>
+  </div>
+</div>
+
+<script>
+// --- EMBEDDED SALON DATA ---
+const SALON_SERVICES = [
+  { name: "Classic Cuts - Short Cut & Style Only", price: 32.0, duration: "35m", category: "Cuts & Style" },
+  { name: "Classic Cuts - Short Wash, Cut & Style", price: 37.0, duration: "50m", category: "Cuts & Style" },
+  { name: "Classic Cuts - Medium Wash, Cut & Style", price: 47.0, duration: "1h", category: "Cuts & Style" },
+  { name: "Classic Cuts - Long Wash, Cut & Style", price: 57.0, duration: "1h 20m", category: "Cuts & Style" },
+  { name: "Classic Cuts - Very Long Wash, Cut & Style", price: 63.0, duration: "1h 40m", category: "Cuts & Style" },
+  { name: "Artificial Nails - Full Set Gel", price: 70.0, duration: "1h 30m", category: "Artificial Nails" },
+  { name: "Signature Pedicure", price: 60.0, duration: "1h", category: "Manis | Pedis" },
+  { name: "Inverness Ear Lobe Piercing (Pair)", price: 65.0, duration: "30m", category: "Ear | Nose Piercing (Inverness system)" },
+  { name: "Classic Full Set Lash Extensions", price: 120.0, duration: "2h", category: "Lash | Brows" },
+  { name: "Premium IPL Laser Hair Removal", price: 150.0, duration: "45m", category: "Premium IPL | Laser Hair Removal" },
+  { name: "Full Balayage & Blowout", price: 185.0, duration: "3h", category: "Chemical Hair Services" }
+];
+
+const SALON_STAFF = [
+  { name: "Amber Houston", title: "Master Hairstylist" },
+  { name: "Zaid Abdullah", title: "Master Hairstylist" },
+  { name: "Clinton Davis", title: "Ear Piercing Specialist & Owner" },
+  { name: "April Spinney", title: "Piercing & Laser Technician" },
+  { name: "Jade Hebert", title: "Esthetician | Lash Tech" },
+  { name: "Joline LeBlanc", title: "Medical Esthetician" },
+  { name: "Marie-Andrée Haché", title: "Senior Esthetician & Nail Tech" },
+  { name: "Sara Bech", title: "Nail Tech | Esthetician" },
+  { name: "Alysis Davis", title: "Business Assistant" },
+  { name: "Jazzlyn Bezanson", title: "Front of House Assistant" }
+];
+
+// --- AUDIO & ELECTRONIC LOUNGE MUSIC SYNTHESIZER ---
+class AudioController {
+  constructor() {
+    this.ctx = null;
+    this.enabled = true;
+    this.musicPlaying = false;
+    this.musicGain = null;
+    this.musicTimer = null;
+    this.isInside = false;
+  }
+  init() {
+    if (!this.ctx) {
+      const AC = window.AudioContext || window.webkitAudioContext;
+      this.ctx = new AC();
+      this.musicGain = this.ctx.createGain();
+      this.musicGain.gain.setValueAtTime(0, this.ctx.currentTime);
+      this.musicGain.connect(this.ctx.destination);
+    }
+  }
+  playFootstep() {
+    if (!this.enabled || !this.ctx) return;
+    try {
+      const osc = this.ctx.createOscillator(), g = this.ctx.createGain();
+      osc.type = 'triangle'; osc.frequency.setValueAtTime(90, this.ctx.currentTime);
+      osc.frequency.exponentialRampToValueAtTime(30, this.ctx.currentTime + 0.08);
+      g.gain.setValueAtTime(0.04, this.ctx.currentTime); g.gain.linearRampToValueAtTime(0, this.ctx.currentTime + 0.08);
+      osc.connect(g); g.connect(this.ctx.destination); osc.start(); osc.stop(this.ctx.currentTime + 0.08);
+    } catch(e) {}
+  }
+  playJump() {
+    if (!this.enabled || !this.ctx) return;
+    try {
+      const osc = this.ctx.createOscillator(), g = this.ctx.createGain();
+      osc.type = 'sine'; osc.frequency.setValueAtTime(140, this.ctx.currentTime);
+      osc.frequency.exponentialRampToValueAtTime(360, this.ctx.currentTime + 0.18);
+      g.gain.setValueAtTime(0.12, this.ctx.currentTime); g.gain.linearRampToValueAtTime(0, this.ctx.currentTime + 0.18);
+      osc.connect(g); g.connect(this.ctx.destination); osc.start(); osc.stop(this.ctx.currentTime + 0.18);
+    } catch(e) {}
+  }
+  playChime() {
+    if (!this.enabled || !this.ctx) return;
+    [523.25, 659.25, 783.99, 1046.5].forEach((freq, i) => {
+      try {
+        const osc = this.ctx.createOscillator(), g = this.ctx.createGain();
+        osc.frequency.setValueAtTime(freq, this.ctx.currentTime + i * 0.08);
+        g.gain.setValueAtTime(0.08, this.ctx.currentTime + i * 0.08);
+        g.gain.exponentialRampToValueAtTime(0.001, this.ctx.currentTime + i * 0.08 + 0.35);
+        osc.connect(g); g.connect(this.ctx.destination);
+        osc.start(this.ctx.currentTime + i * 0.08); osc.stop(this.ctx.currentTime + i * 0.08 + 0.4);
+      } catch(e) {}
+    });
+  }
+  playFanfare() {
+    if (!this.enabled || !this.ctx) return;
+    [440, 554.37, 659.25, 880].forEach((freq, idx) => {
+      try {
+        const osc = this.ctx.createOscillator(), g = this.ctx.createGain();
+        osc.frequency.setValueAtTime(freq, this.ctx.currentTime + idx * 0.1);
+        g.gain.setValueAtTime(0.12, this.ctx.currentTime + idx * 0.1);
+        g.gain.exponentialRampToValueAtTime(0.001, this.ctx.currentTime + idx * 0.1 + 0.5);
+        osc.connect(g); g.connect(this.ctx.destination);
+        osc.start(this.ctx.currentTime + idx * 0.1); osc.stop(this.ctx.currentTime + idx * 0.1 + 0.55);
+      } catch(e) {}
+    });
+  }
+  startElectronicLounge() {
+    if (!this.ctx || this.musicPlaying) return;
+    this.musicPlaying = true;
+    const chords = [
+      [261.63, 329.63, 392.00, 493.88],
+      [220.00, 261.63, 329.63, 392.00],
+      [174.61, 220.00, 261.63, 329.63],
+      [196.00, 246.94, 293.66, 349.23]
+    ];
+    let step = 0;
+    this.musicTimer = setInterval(() => {
+      if (!this.enabled || !this.musicGain) return;
+      const chord = chords[step % chords.length];
+      chord.forEach((freq, i) => {
+        try {
+          const osc = this.ctx.createOscillator(), g = this.ctx.createGain();
+          osc.type = i === 0 ? 'triangle' : 'sine';
+          osc.frequency.setValueAtTime(freq, this.ctx.currentTime);
+          g.gain.setValueAtTime(0.02, this.ctx.currentTime);
+          g.gain.exponentialRampToValueAtTime(0.001, this.ctx.currentTime + 1.8);
+          osc.connect(g); g.connect(this.musicGain);
+          osc.start(); osc.stop(this.ctx.currentTime + 1.9);
+        } catch(e) {}
+      });
+      step++;
+    }, 1800);
+  }
+  updateSpatialVolume(playerZ) {
+    if (!this.ctx || !this.musicGain) return;
+    const inside = playerZ > -4.5;
+    const indicator = document.getElementById('music-indicator');
+    if (inside !== this.isInside) {
+      this.isInside = inside;
+      if (inside) {
+        this.musicGain.gain.linearRampToValueAtTime(0.35, this.ctx.currentTime + 1.0);
+        if (indicator) indicator.style.display = 'flex';
+      } else {
+        this.musicGain.gain.linearRampToValueAtTime(0.0, this.ctx.currentTime + 1.0);
+        if (indicator) indicator.style.display = 'none';
+      }
+    }
+  }
+  toggleAudio() {
+    this.enabled = !this.enabled;
+    if (this.musicGain) this.musicGain.gain.setValueAtTime(this.enabled && this.isInside ? 0.35 : 0, this.ctx.currentTime);
+    return this.enabled;
+  }
+}
+const audio = new AudioController();
+
+// --- GAME STATE ---
+const gameState = {
+  customization: {
+    gender: 'female', skinColor: '#ffd1b3', hairStyle: 'long', hairColor: '#221511',
+    topColor: '#ec4899', bottomColor: '#1e293b'
+  },
+  cameraMode: 'third', isGameStarted: false, isModalOpen: false, nearReceptionist: false,
+  scenarioIdx: 0, dialogueStage: 1, currentScenario: null, score: 0
+};
+
+// --- PROCEDURAL ROBLOX CHARACTER BUILDER ---
+function buildRobloxCharacter(config) {
+  const root = new THREE.Group();
+  const skinMat = new THREE.MeshLambertMaterial({ color: config.skinColor });
+  const topMat = new THREE.MeshLambertMaterial({ color: config.topColor });
+  const bottomMat = new THREE.MeshLambertMaterial({ color: config.bottomColor });
+  const hairMat = new THREE.MeshLambertMaterial({ color: config.hairColor });
+
+  const torso = new THREE.Mesh(new THREE.BoxGeometry(1.2, 1.4, 0.6), topMat);
+  torso.position.y = 1.7; torso.castShadow = true; root.add(torso);
+
+  const head = new THREE.Mesh(new THREE.BoxGeometry(0.9, 0.9, 0.9), skinMat);
+  head.position.set(0, 1.25, 0); head.castShadow = true; torso.add(head);
+
+  const hairGroup = new THREE.Group();
+  if (config.hairStyle === 'buzz') {
+    const buzz = new THREE.Mesh(new THREE.BoxGeometry(0.96, 0.22, 0.96), hairMat);
+    buzz.position.y = 0.45; hairGroup.add(buzz);
+  } else if (config.hairStyle === 'bob') {
+    const top = new THREE.Mesh(new THREE.BoxGeometry(0.98, 0.35, 0.98), hairMat);
+    top.position.y = 0.45;
+    const lSide = new THREE.Mesh(new THREE.BoxGeometry(0.18, 0.8, 0.98), hairMat); lSide.position.set(-0.48, 0.05, 0);
+    const rSide = new THREE.Mesh(new THREE.BoxGeometry(0.18, 0.8, 0.98), hairMat); rSide.position.set(0.48, 0.05, 0);
+    const back = new THREE.Mesh(new THREE.BoxGeometry(0.98, 0.8, 0.18), hairMat); back.position.set(0, 0.05, -0.48);
+    hairGroup.add(top, lSide, rSide, back);
+  } else if (config.hairStyle === 'long') {
+    const top = new THREE.Mesh(new THREE.BoxGeometry(1.0, 0.35, 1.0), hairMat);
+    top.position.y = 0.45;
+    const lSide = new THREE.Mesh(new THREE.BoxGeometry(0.2, 1.4, 0.9), hairMat); lSide.position.set(-0.5, -0.2, 0.05);
+    const rSide = new THREE.Mesh(new THREE.BoxGeometry(0.2, 1.4, 0.9), hairMat); rSide.position.set(0.5, -0.2, 0.05);
+    const back = new THREE.Mesh(new THREE.BoxGeometry(1.0, 1.5, 0.22), hairMat); back.position.set(0, -0.3, -0.5);
+    hairGroup.add(top, lSide, rSide, back);
+  } else if (config.hairStyle === 'afro') {
+    const afro = new THREE.Mesh(new THREE.SphereGeometry(0.72, 8, 8), hairMat);
+    afro.position.set(0, 0.45, -0.1); hairGroup.add(afro);
+  } else if (config.hairStyle === 'ponytail') {
+    const top = new THREE.Mesh(new THREE.BoxGeometry(0.98, 0.35, 0.98), hairMat);
+    top.position.y = 0.45;
+    const tail = new THREE.Mesh(new THREE.CylinderGeometry(0.15, 0.22, 1.0, 8), hairMat);
+    tail.rotation.x = -0.5; tail.position.set(0, 0.1, -0.65);
+    hairGroup.add(top, tail);
+  } else if (config.hairStyle === 'bun') {
+    const top = new THREE.Mesh(new THREE.BoxGeometry(0.98, 0.35, 0.98), hairMat);
+    top.position.y = 0.45;
+    const bun = new THREE.Mesh(new THREE.SphereGeometry(0.35, 8, 8), hairMat);
+    bun.position.set(0, 0.8, -0.1); hairGroup.add(top, bun);
+  } else if (config.hairStyle === 'spiky') {
+    const top = new THREE.Mesh(new THREE.BoxGeometry(0.95, 0.3, 0.95), hairMat);
+    top.position.y = 0.45;
+    for (let i = -0.3; i <= 0.3; i += 0.3) {
+      const cone = new THREE.Mesh(new THREE.ConeGeometry(0.14, 0.38, 5), hairMat);
+      cone.position.set(i, 0.68, 0); hairGroup.add(cone);
+    }
+    hairGroup.add(top);
+  }
+  head.add(hairGroup);
+
+  const armGeo = new THREE.BoxGeometry(0.46, 1.35, 0.46);
+  const leftArmPivot = new THREE.Group(); leftArmPivot.position.set(-0.85, 0.5, 0);
+  const leftArm = new THREE.Mesh(armGeo, topMat); leftArm.position.y = -0.55; leftArmPivot.add(leftArm);
+  torso.add(leftArmPivot);
+
+  const rightArmPivot = new THREE.Group(); rightArmPivot.position.set(0.85, 0.5, 0);
+  const rightArm = new THREE.Mesh(armGeo, topMat); rightArm.position.y = -0.55; rightArmPivot.add(rightArm);
+  torso.add(rightArmPivot);
+
+  const legGeo = new THREE.BoxGeometry(0.5, 1.4, 0.5);
+  const leftLegPivot = new THREE.Group(); leftLegPivot.position.set(-0.3, 1.0, 0);
+  const leftLeg = new THREE.Mesh(legGeo, bottomMat); leftLeg.position.y = -0.65; leftLegPivot.add(leftLeg);
+  root.add(leftLegPivot);
+
+  const rightLegPivot = new THREE.Group(); rightLegPivot.position.set(0.3, 1.0, 0);
+  const rightLeg = new THREE.Mesh(legGeo, bottomMat); rightLeg.position.y = -0.65; rightLegPivot.add(rightLeg);
+  root.add(rightLegPivot);
+
+  return { root, torso, head, hairGroup, leftArmPivot, rightArmPivot, leftLegPivot, rightLegPivot };
+}
+
+// --- PREVIEW AVATAR ON INTRO SCREEN ---
+let previewScene, previewCamera, previewRenderer, previewAvatar;
+function initPreview() {
+  const pCont = document.getElementById('preview-canvas-container');
+  if (!pCont) return;
+  previewScene = new THREE.Scene();
+  previewCamera = new THREE.PerspectiveCamera(50, pCont.clientWidth / pCont.clientHeight || 1, 0.1, 50);
+  previewCamera.position.set(0, 1.8, 4.4);
+
+  previewRenderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
+  previewRenderer.setSize(pCont.clientWidth, pCont.clientHeight);
+  pCont.appendChild(previewRenderer.domElement);
+
+  const pLight1 = new THREE.DirectionalLight('#fff', 1.1);
+  pLight1.position.set(2, 4, 3);
+  previewScene.add(pLight1, new THREE.AmbientLight('#ffffff', 0.8));
+
+  updatePreview();
+
+  let isDragging = false, lastX = 0;
+  pCont.addEventListener('mousedown', (e) => { isDragging = true; lastX = e.clientX; });
+  window.addEventListener('mouseup', () => isDragging = false);
+  window.addEventListener('mousemove', (e) => {
+    if (isDragging && previewAvatar) {
+      previewAvatar.root.rotation.y += (e.clientX - lastX) * 0.015;
+      lastX = e.clientX;
+    }
+  });
+
+  function loopPreview() {
+    requestAnimationFrame(loopPreview);
+    if (!gameState.isGameStarted) {
+      if (!isDragging && previewAvatar) previewAvatar.root.rotation.y += 0.008;
+      previewRenderer.render(previewScene, previewCamera);
+    }
+  }
+  loopPreview();
+}
+
+function updatePreview() {
+  if (previewAvatar) previewScene.remove(previewAvatar.root);
+  previewAvatar = buildRobloxCharacter(gameState.customization);
+  previewScene.add(previewAvatar.root);
+}
+
+// --- 3D ENGINE & SCENE SETUP ---
+const container = document.getElementById('canvas-container');
+const scene = new THREE.Scene();
+scene.background = new THREE.Color('#93c5fd');
+scene.fog = new THREE.FogExp2('#bfdbfe', 0.012);
+
+const camera = new THREE.PerspectiveCamera(65, window.innerWidth / window.innerHeight, 0.1, 300);
+const renderer = new THREE.WebGLRenderer({ antialias: true, powerPreference: 'high-performance' });
+renderer.setSize(window.innerWidth, window.innerHeight);
+renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+renderer.shadowMap.enabled = true;
+container.appendChild(renderer.domElement);
+
+scene.add(new THREE.AmbientLight('#ffffff', 0.7));
+const sun = new THREE.DirectionalLight('#fffbeb', 0.95);
+sun.position.set(30, 50, -20); sun.castShadow = true;
+sun.shadow.mapSize.set(2048, 2048);
+scene.add(sun);
+
+const colliders = [];
+
+// --- 3D WORLD BUILDING ---
+function buildWorld() {
+  const grass = new THREE.Mesh(new THREE.PlaneGeometry(240, 240), new THREE.MeshLambertMaterial({ color: '#2e7d32' }));
+  grass.rotation.x = -Math.PI / 2; grass.position.y = -0.05; grass.receiveShadow = true;
+  scene.add(grass);
+
+  const road = new THREE.Mesh(new THREE.PlaneGeometry(240, 24), new THREE.MeshLambertMaterial({ color: '#1e293b' }));
+  road.rotation.x = -Math.PI / 2; road.position.set(0, 0.01, -45); road.receiveShadow = true;
+  scene.add(road);
+
+  const parkingLot = new THREE.Mesh(new THREE.PlaneGeometry(130, 52), new THREE.MeshLambertMaterial({ color: '#272f38' }));
+  parkingLot.rotation.x = -Math.PI / 2; parkingLot.position.set(0, 0.02, -24); parkingLot.receiveShadow = true;
+  scene.add(parkingLot);
+
+  for (let px = -45; px <= 45; px += 5.5) {
+    const line = new THREE.Mesh(new THREE.PlaneGeometry(0.2, 8.5), new THREE.MeshBasicMaterial({ color: '#ffffff' }));
+    line.rotation.x = -Math.PI / 2; line.position.set(px, 0.03, -18); scene.add(line);
+    const bumper = new THREE.Mesh(new THREE.BoxGeometry(3.2, 0.25, 0.4), new THREE.MeshLambertMaterial({ color: '#cbd5e1' }));
+    bumper.position.set(px + 2.7, 0.12, -14); scene.add(bumper); colliders.push(new THREE.Box3().setFromObject(bumper));
+  }
+
+  const sidewalk = new THREE.Mesh(new THREE.BoxGeometry(120, 0.25, 8.5), new THREE.MeshLambertMaterial({ color: '#cbd5e1' }));
+  sidewalk.position.set(0, 0.12, -8); sidewalk.receiveShadow = true; scene.add(sidewalk);
+
+  const distBuildingColors = ['#475569', '#334155', '#64748b', '#94a3b8', '#78350f', '#0f172a'];
+  for (let bx = -110; bx <= 110; bx += 30) {
+    if (Math.abs(bx) < 35) continue;
+    const bHeight = 8 + Math.random() * 12;
+    const bMesh = new THREE.Mesh(
+      new THREE.BoxGeometry(22, bHeight, 28),
+      new THREE.MeshLambertMaterial({ color: distBuildingColors[Math.floor(Math.random() * distBuildingColors.length)] })
+    );
+    bMesh.position.set(bx, bHeight / 2, -75);
+    scene.add(bMesh);
+  }
+
+  const brickMat = new THREE.MeshLambertMaterial({ color: '#64748b' });
+  const leftPlaza = new THREE.Mesh(new THREE.BoxGeometry(36, 10, 42), brickMat);
+  leftPlaza.position.set(-36, 5, 14); scene.add(leftPlaza); colliders.push(new THREE.Box3().setFromObject(leftPlaza));
+
+  const rightPlaza = new THREE.Mesh(new THREE.BoxGeometry(36, 10, 42), brickMat);
+  rightPlaza.position.set(36, 5, 14); scene.add(rightPlaza); colliders.push(new THREE.Box3().setFromObject(rightPlaza));
+
+  const salonFloor = new THREE.Mesh(new THREE.PlaneGeometry(32, 36), new THREE.MeshLambertMaterial({ color: '#b5835a' }));
+  salonFloor.rotation.x = -Math.PI / 2; salonFloor.position.set(0, 0.05, 13); salonFloor.receiveShadow = true;
+  scene.add(salonFloor);
+
+  const salonCeil = new THREE.Mesh(new THREE.PlaneGeometry(32, 36), new THREE.MeshLambertMaterial({ color: '#f8fafc', side: THREE.DoubleSide }));
+  salonCeil.rotation.x = Math.PI / 2; salonCeil.position.set(0, 8, 13); scene.add(salonCeil);
+
+  const wallMat = new THREE.MeshLambertMaterial({ color: '#475569' });
+  const backWall = new THREE.Mesh(new THREE.BoxGeometry(32, 8, 0.8), wallMat);
+  backWall.position.set(0, 4, 31); scene.add(backWall); colliders.push(new THREE.Box3().setFromObject(backWall));
+
+  const leftWall = new THREE.Mesh(new THREE.BoxGeometry(0.8, 8, 36), new THREE.MeshLambertMaterial({ color: '#f1f5f9' }));
+  leftWall.position.set(-16, 4, 13); scene.add(leftWall); colliders.push(new THREE.Box3().setFromObject(leftWall));
+
+  const rightWall = new THREE.Mesh(new THREE.BoxGeometry(0.8, 8, 36), new THREE.MeshLambertMaterial({ color: '#f1f5f9' }));
+  rightWall.position.set(16, 4, 13); scene.add(rightWall); colliders.push(new THREE.Box3().setFromObject(rightWall));
+
+  const fL = new THREE.Mesh(new THREE.BoxGeometry(12, 8, 0.6), wallMat);
+  fL.position.set(-10, 4, -5); scene.add(fL); colliders.push(new THREE.Box3().setFromObject(fL));
+  const fR = new THREE.Mesh(new THREE.BoxGeometry(12, 8, 0.6), wallMat);
+  fR.position.set(10, 4, -5); scene.add(fR); colliders.push(new THREE.Box3().setFromObject(fR));
+
+  const lsdSign = new THREE.Mesh(new THREE.BoxGeometry(14, 2.6, 0.3), new THREE.MeshBasicMaterial({ color: '#db2777' }));
+  lsdSign.position.set(0, 7.2, -5.2); scene.add(lsdSign);
+
+  const interiorLight = new THREE.PointLight('#fef3c7', 0.9, 25);
+  interiorLight.position.set(0, 6.5, 12); scene.add(interiorLight);
+
+  const recDesk = new THREE.Mesh(new THREE.BoxGeometry(5.5, 1.8, 1.6), new THREE.MeshLambertMaterial({ color: '#1e293b' }));
+  recDesk.position.set(-0.5, 0.9, 2); scene.add(recDesk); colliders.push(new THREE.Box3().setFromObject(recDesk));
+  const mon = new THREE.Mesh(new THREE.BoxGeometry(0.8, 0.6, 0.1), new THREE.MeshBasicMaterial({ color: '#38bdf8' }));
+  mon.position.set(0.5, 2.2, 2); scene.add(mon);
+
+  const sofa = new THREE.Mesh(new THREE.BoxGeometry(6, 0.8, 2.5), new THREE.MeshLambertMaterial({ color: '#334155' }));
+  sofa.position.set(10, 0.4, 0.5); scene.add(sofa); colliders.push(new THREE.Box3().setFromObject(sofa));
+  const coffeeTable = new THREE.Mesh(new THREE.BoxGeometry(3.5, 0.6, 1.8), new THREE.MeshLambertMaterial({ color: '#f8fafc' }));
+  coffeeTable.position.set(10, 0.3, 2.8); scene.add(coffeeTable);
+  const wineFridge = new THREE.Mesh(new THREE.BoxGeometry(1.6, 2.4, 1.2), new THREE.MeshLambertMaterial({ color: '#0f172a' }));
+  wineFridge.position.set(14, 1.2, -3.5); scene.add(wineFridge); colliders.push(new THREE.Box3().setFromObject(wineFridge));
+
+  const shelf = new THREE.Mesh(new THREE.BoxGeometry(0.8, 5.5, 10), new THREE.MeshLambertMaterial({ color: '#f8fafc' }));
+  shelf.position.set(15.2, 2.8, 12); scene.add(shelf); colliders.push(new THREE.Box3().setFromObject(shelf));
+  const prodCols = ['#f43f5e', '#3b82f6', '#10b981', '#f59e0b', '#8b5cf6'];
+  for (let rz = 8; rz <= 16; rz += 1.4) {
+    for (let ry = 1.2; ry <= 4.5; ry += 1.1) {
+      const b = new THREE.Mesh(new THREE.CylinderGeometry(0.12, 0.12, 0.45, 6), new THREE.MeshLambertMaterial({ color: prodCols[Math.floor(Math.random()*prodCols.length)] }));
+      b.position.set(14.6, ry, rz); scene.add(b);
+    }
+  }
+
+  for (let sz = 6; sz <= 21; sz += 5) {
+    const mirror = new THREE.Mesh(new THREE.BoxGeometry(0.1, 3.8, 2.2), new THREE.MeshStandardMaterial({ color: '#ffffff', roughness: 0.1, metalness: 0.9 }));
+    mirror.position.set(-15.4, 3.2, sz); scene.add(mirror);
+    const stDesk = new THREE.Mesh(new THREE.BoxGeometry(1.2, 1.4, 2.6), new THREE.MeshLambertMaterial({ color: '#f8fafc' }));
+    stDesk.position.set(-14.8, 0.7, sz); scene.add(stDesk); colliders.push(new THREE.Box3().setFromObject(stDesk));
+    const chair = new THREE.Mesh(new THREE.BoxGeometry(1.1, 1.2, 1.1), new THREE.MeshLambertMaterial({ color: '#1e293b' }));
+    chair.position.set(-13, 0.6, sz); scene.add(chair);
+  }
+
+  const colBar = new THREE.Mesh(new THREE.BoxGeometry(3.5, 1.8, 6), new THREE.MeshLambertMaterial({ color: '#f8fafc' }));
+  colBar.position.set(0, 0.9, 12); scene.add(colBar); colliders.push(new THREE.Box3().setFromObject(colBar));
+
+  const pediPlat = new THREE.Mesh(new THREE.BoxGeometry(8, 0.6, 7), new THREE.MeshLambertMaterial({ color: '#854d0e' }));
+  pediPlat.position.set(-11, 0.3, 26); scene.add(pediPlat); colliders.push(new THREE.Box3().setFromObject(pediPlat));
+  for (let pz = 24.5; pz <= 27.5; pz += 3) {
+    const pChair = new THREE.Mesh(new THREE.BoxGeometry(1.8, 2.4, 1.8), new THREE.MeshLambertMaterial({ color: '#0f172a' }));
+    pChair.position.set(-12, 1.8, pz); scene.add(pChair);
+    const pTub = new THREE.Mesh(new THREE.BoxGeometry(1.2, 0.5, 1.2), new THREE.MeshStandardMaterial({ color: '#f8fafc' }));
+    pTub.position.set(-9.8, 0.8, pz); scene.add(pTub);
+    const water = new THREE.Mesh(new THREE.PlaneGeometry(0.9, 0.9), new THREE.MeshBasicMaterial({ color: '#38bdf8' }));
+    water.rotation.x = -Math.PI / 2; water.position.set(-9.8, 0.95, pz); scene.add(water);
+  }
+
+  for (let nz = 16; nz <= 20; nz += 4) {
+    const nailDesk = new THREE.Mesh(new THREE.BoxGeometry(2.4, 1.4, 1.2), new THREE.MeshLambertMaterial({ color: '#f8fafc' }));
+    nailDesk.position.set(8, 0.7, nz); scene.add(nailDesk); colliders.push(new THREE.Box3().setFromObject(nailDesk));
+    const uvLamp = new THREE.Mesh(new THREE.BoxGeometry(0.6, 0.3, 0.4), new THREE.MeshBasicMaterial({ color: '#c084fc' }));
+    uvLamp.position.set(8, 1.5, nz); scene.add(uvLamp);
+  }
+
+  const selfieWall = new THREE.Mesh(new THREE.BoxGeometry(4, 5, 0.3), new THREE.MeshLambertMaterial({ color: '#15803d' }));
+  selfieWall.position.set(13.5, 2.5, 25); scene.add(selfieWall);
+
+  function addTree(x, z) {
+    const trunk = new THREE.Mesh(new THREE.CylinderGeometry(0.3, 0.4, 3, 6), new THREE.MeshLambertMaterial({ color: '#78350f' }));
+    trunk.position.set(x, 1.5, z);
+    const leaves = new THREE.Mesh(new THREE.SphereGeometry(1.8, 8, 8), new THREE.MeshLambertMaterial({ color: '#15803d' }));
+    leaves.position.set(x, 3.8, z);
+    scene.add(trunk, leaves);
+    colliders.push(new THREE.Box3().setFromObject(trunk));
+  }
+  addTree(-30, -8); addTree(-20, -8); addTree(20, -8); addTree(30, -8);
+}
+buildWorld();
+
+// --- CHARACTERS SETUP ---
+let playerCharacter, receptionistCharacter;
+function setupCharacters() {
+  playerCharacter = buildRobloxCharacter(gameState.customization);
+  playerCharacter.root.position.set(0, 0, -18);
+  scene.add(playerCharacter.root);
+
+  receptionistCharacter = buildRobloxCharacter({
+    gender: 'female', skinColor: '#f5c6a5', hairStyle: 'bob', hairColor: '#5a3825',
+    topColor: '#ec4899', bottomColor: '#0f172a'
+  });
+  receptionistCharacter.root.position.set(0, 0, 4);
+  scene.add(receptionistCharacter.root);
+}
+
+const receptionistWaypoints = [
+  { x: -0.5, z: 2.2 }, { x: 13.0, z: 10.0 }, { x: 9.0, z: 2.0 }, { x: 0.0, z: 12.0 }, { x: -9.0, z: 24.0 }
+];
+let wpIndex = 0;
+
+function updateReceptionist(delta) {
+  if (!receptionistCharacter || gameState.isModalOpen) return;
+  const target = receptionistWaypoints[wpIndex];
+  const dx = target.x - receptionistCharacter.root.position.x;
+  const dz = target.z - receptionistCharacter.root.position.z;
+  const dist = Math.hypot(dx, dz);
+
+  if (dist < 0.4) {
+    wpIndex = (wpIndex + 1) % receptionistWaypoints.length;
+  } else {
+    const angle = Math.atan2(dx, dz);
+    receptionistCharacter.root.rotation.y = angle;
+    receptionistCharacter.root.position.x += Math.sin(angle) * 2.2 * delta;
+    receptionistCharacter.root.position.z += Math.cos(angle) * 2.2 * delta;
+    const walk = Math.sin(Date.now() * 0.014);
+    receptionistCharacter.leftLegPivot.rotation.x = walk * 0.5;
+    receptionistCharacter.rightLegPivot.rotation.x = -walk * 0.5;
+    receptionistCharacter.leftArmPivot.rotation.x = -walk * 0.5;
+    receptionistCharacter.rightArmPivot.rotation.x = walk * 0.5;
+  }
+}
+
+// --- CONTROLS & JUMP PHYSICS ---
+const keys = { w: false, a: false, s: false, d: false, space: false, shift: false };
+let playerVelocityY = 0;
+let isGrounded = true;
+let cameraYaw = 0, cameraPitch = 0.2, cameraZoom = 6.5;
+
+window.addEventListener('keydown', (e) => {
+  if (document.activeElement && document.activeElement.tagName === 'TEXTAREA') return;
+  if (gameState.isModalOpen && e.key.toLowerCase() !== 'escape') return;
+
+  const k = e.key.toLowerCase();
+  if (k === 'w' || k === 'arrowup') keys.w = true;
+  if (k === 's' || k === 'arrowdown') keys.s = true;
+  if (k === 'a' || k === 'arrowleft') keys.a = true;
+  if (k === 'd' || k === 'arrowright') keys.d = true;
+  if (k === 'shift') keys.shift = true;
+  if (e.code === 'Space' || k === ' ') {
+    if (isGrounded) {
+      playerVelocityY = 8.5;
+      isGrounded = false;
+      audio.playJump();
+    }
+  }
+  if (k === 'e' && gameState.nearReceptionist) triggerRoleReversalMinigame();
+});
+
+window.addEventListener('keyup', (e) => {
+  if (document.activeElement && document.activeElement.tagName === 'TEXTAREA') return;
+  const k = e.key.toLowerCase();
+  if (k === 'w' || k === 'arrowup') keys.w = false;
+  if (k === 's' || k === 'arrowdown') keys.s = false;
+  if (k === 'a' || k === 'arrowleft') keys.a = false;
+  if (k === 'd' || k === 'arrowright') keys.d = false;
+  if (k === 'shift') keys.shift = false;
+});
+
+let isDragging = false, lastX = 0, lastY = 0;
+window.addEventListener('mousedown', (e) => { if (!e.target.closest('.interactive')) { isDragging = true; lastX = e.clientX; lastY = e.clientY; } });
+window.addEventListener('mouseup', () => isDragging = false);
+window.addEventListener('mousemove', (e) => {
+  if (!isDragging || gameState.isModalOpen) return;
+  cameraYaw -= (e.clientX - lastX) * 0.005;
+  cameraPitch = Math.max(-0.2, Math.min(1.2, cameraPitch + (e.clientY - lastY) * 0.004));
+  lastX = e.clientX; lastY = e.clientY;
+});
+
+let footTimer = 0;
+function updatePlayer(delta) {
+  if (!playerCharacter || gameState.isModalOpen) return;
+
+  const speed = keys.shift ? 7.5 : 4.5;
+  let mx = 0, mz = 0;
+  if (keys.w) mz -= 1; if (keys.s) mz += 1; if (keys.a) mx -= 1; if (keys.d) mx += 1;
+
+  const len = Math.hypot(mx, mz);
+  if (len > 0.1) {
+    const nx = mx / len, nz = mz / len;
+    const wx = nx * Math.cos(cameraYaw) + nz * Math.sin(cameraYaw);
+    const wz = -nx * Math.sin(cameraYaw) + nz * Math.cos(cameraYaw);
+
+    playerCharacter.root.position.x += wx * speed * delta;
+    playerCharacter.root.position.z += wz * speed * delta;
+    playerCharacter.root.rotation.y = Math.atan2(wx, wz);
+
+    const walk = Math.sin(Date.now() * 0.015);
+    playerCharacter.leftLegPivot.rotation.x = walk * 0.6;
+    playerCharacter.rightLegPivot.rotation.x = -walk * 0.6;
+    playerCharacter.leftArmPivot.rotation.x = -walk * 0.6;
+    playerCharacter.rightArmPivot.rotation.x = walk * 0.6;
+
+    footTimer += delta;
+    if (footTimer > (keys.shift ? 0.28 : 0.42)) { audio.playFootstep(); footTimer = 0; }
+  } else {
+    playerCharacter.leftLegPivot.rotation.x = 0; playerCharacter.rightLegPivot.rotation.x = 0;
+    playerCharacter.leftArmPivot.rotation.x = 0; playerCharacter.rightArmPivot.rotation.x = 0;
+  }
+
+  // Gravity Physics
+  playerVelocityY -= 24 * delta;
+  playerCharacter.root.position.y += playerVelocityY * delta;
+  if (playerCharacter.root.position.y <= 0) {
+    playerCharacter.root.position.y = 0;
+    playerVelocityY = 0;
+    isGrounded = true;
+  }
+
+  audio.updateSpatialVolume(playerCharacter.root.position.z);
+
+  if (receptionistCharacter) {
+    const dist = playerCharacter.root.position.distanceTo(receptionistCharacter.root.position);
+    gameState.nearReceptionist = dist < 3.8;
+    const prompt = document.getElementById('interaction-prompt');
+    if (prompt) prompt.style.display = gameState.nearReceptionist && !gameState.isModalOpen ? 'flex' : 'none';
+  }
+
+  const cx = playerCharacter.root.position.x + Math.sin(cameraYaw) * Math.cos(cameraPitch) * cameraZoom;
+  const cz = playerCharacter.root.position.z + Math.cos(cameraYaw) * Math.cos(cameraPitch) * cameraZoom;
+  const cy = playerCharacter.root.position.y + 2.2 + Math.sin(cameraPitch) * cameraZoom;
+  camera.position.set(cx, cy, cz);
+  camera.lookAt(playerCharacter.root.position.x, playerCharacter.root.position.y + 1.8, playerCharacter.root.position.z);
+}
+
+// --- TRAINING SCENARIOS & BRANCHING DIALOGUE TREE ---
+const TRAINING_SCENARIOS = [
+  {
+    title: "Haircuts & Styling",
+    categoryFilter: "Cuts & Style",
+    stages: [
+      {
+        stage: 1,
+        question: "Hi! I have shoulder-length hair and I'd like to get a wash, cut, and blow dry style. How much is that, how long does it take, and which master stylist is available?",
+        idealService: "Classic Cuts - Medium Wash, Cut & Style",
+        idealStaff: "Amber Houston",
+        idealPrice: 47.0,
+        idealDuration: "1h",
+        keywords: ["medium", "47", "1h", "1 hour", "amber", "zaid", "wash"],
+        options: [
+          { text: "That's our 'Classic Cuts - Medium Wash, Cut & Style' ($47.00, 1 hour) with Master Stylists Amber Houston or Zaid Abdullah!", correct: true, feedback: "Spot on! Shoulder length is Medium hair ($47, 1h)." },
+          { text: "Short Cut for $32.00 (35m) with Clinton Davis.", correct: false, feedback: "Incorrect. Shoulder length is Medium, and Clinton is an Ear Piercing Specialist." }
+        ]
+      }
+    ]
+  },
+  {
+    title: "Artificial Nails & Pedicure",
+    categoryFilter: "Artificial Nails",
+    stages: [
+      {
+        stage: 1,
+        question: "Hello! I need a fresh set of artificial gel nails and a pedicure for a wedding this weekend. Who are your nail technicians and what can you offer?",
+        idealService: "Artificial Nails - Full Set Gel",
+        idealStaff: "Marie-Andrée Haché",
+        idealPrice: 70.0,
+        idealDuration: "1h 30m",
+        keywords: ["gel", "70", "marie-andrée", "sara", "pedicure", "nail"],
+        options: [
+          { text: "Senior Esthetician & Nail Techs Marie-Andrée Haché and Sara Bech can do a Full Set Gel ($70.00) and Signature Pedicure ($60.00)!", correct: true, feedback: "Perfect match! Marie-Andrée and Sara are dedicated Nail Techs." },
+          { text: "April Spinney with the laser machine.", correct: false, feedback: "Incorrect. April does Piercings & Laser." }
+        ]
+      }
+    ]
+  }
+];
+
+function triggerRoleReversalMinigame() {
+  gameState.isModalOpen = true;
+  document.getElementById('interaction-prompt').style.display = 'none';
+
+  const banner = document.getElementById('role-reversal-alert');
+  banner.classList.add('show');
+  audio.playChime();
+
+  setTimeout(() => {
+    banner.classList.remove('show');
+    openTrainingModal();
+  }, 1400);
+}
+
+function openTrainingModal() {
+  const modal = document.getElementById('booking-modal');
+  modal.classList.add('active');
+
+  const sc = TRAINING_SCENARIOS[gameState.scenarioIdx % TRAINING_SCENARIOS.length];
+  gameState.currentScenario = sc;
+  gameState.dialogueStage = 1;
+
+  renderCurrentStage();
+  populateDropdownsWithContext(sc.categoryFilter);
+}
+
+function renderCurrentStage() {
+  const sc = gameState.currentScenario;
+  const stageData = sc.stages[gameState.dialogueStage - 1] || sc.stages[0];
+
+  document.getElementById('dialogue-stage-badge').innerText = `Stage ${gameState.dialogueStage} of ${sc.stages.length}: ${sc.title}`;
+  document.getElementById('customer-dialogue-text').innerText = `"${stageData.question}"`;
+  document.getElementById('context-cat-name').innerText = sc.categoryFilter;
+
+  document.getElementById('gemini-chat-input').value = '';
+  document.getElementById('gemini-feedback-box').style.display = 'none';
+
+  const optList = document.getElementById('dialogue-options-list');
+  optList.innerHTML = '';
+  stageData.options.forEach((opt, idx) => {
+    const btn = document.createElement('button');
+    btn.className = 'ans-option-btn';
+    btn.innerText = `${idx + 1}. ${opt.text}`;
+    btn.onclick = () => {
+      document.querySelectorAll('.ans-option-btn').forEach(b => b.classList.remove('selected'));
+      btn.classList.add('selected');
+      handleQuickResponse(opt, stageData);
+    };
+    optList.appendChild(btn);
+  });
+}
+
+// Gemini NLP Response Evaluator
+document.getElementById('gemini-submit-btn')?.addEventListener('click', () => {
+  const text = document.getElementById('gemini-chat-input').value.trim().toLowerCase();
+  if (!text) { alert("Please type your response to the client!"); return; }
+
+  const sc = gameState.currentScenario;
+  const stageData = sc.stages[gameState.dialogueStage - 1] || sc.stages[0];
+
+  let matches = 0;
+  stageData.keywords.forEach(kw => {
+    if (text.includes(kw.toLowerCase())) matches++;
+  });
+
+  const feedbackBox = document.getElementById('gemini-feedback-box');
+  const widgetFeedback = document.getElementById('rec-widget-feedback');
+
+  if (matches >= 2) {
+    audio.playFanfare();
+    feedbackBox.style.display = 'block';
+    feedbackBox.style.borderColor = '#10b981';
+    feedbackBox.style.background = 'rgba(16, 185, 129, 0.15)';
+    feedbackBox.style.color = '#a7f3d0';
+    feedbackBox.innerHTML = `<strong>✨ Gemini Trainer Feedback: Excellent!</strong><br>You addressed the client politely and provided accurate details.`;
+    if (widgetFeedback) widgetFeedback.innerText = "● 5-Star Receptionist Tone!";
+
+    autoSelectMatchingService(stageData.idealService, stageData.idealStaff);
+  } else {
+    audio.playFootstep();
+    feedbackBox.style.display = 'block';
+    feedbackBox.style.borderColor = '#f59e0b';
+    feedbackBox.style.background = 'rgba(245, 158, 11, 0.15)';
+    feedbackBox.style.color = '#fde68a';
+    feedbackBox.innerHTML = `<strong>✨ Gemini Trainer Coaching Tip:</strong><br>Be sure to mention the specific service name, exact price ($${stageData.idealPrice || 47}), duration, and recommend a specialist.`;
+    if (widgetFeedback) widgetFeedback.innerText = "● Needs More Service Detail";
+  }
+});
+
+function handleQuickResponse(opt, stageData) {
+  const widgetFeedback = document.getElementById('rec-widget-feedback');
+  if (opt.correct) {
+    audio.playFanfare();
+    if (widgetFeedback) widgetFeedback.innerText = "● Great Response!";
+    autoSelectMatchingService(stageData.idealService, stageData.idealStaff);
+  } else {
+    if (widgetFeedback) widgetFeedback.innerText = "● Sub-optimal Choice";
+  }
+}
+
+function autoSelectMatchingService(serviceName, staffName) {
+  const sSel = document.getElementById('form-service-select');
+  const stSel = document.getElementById('form-staff-select');
+  if (serviceName) {
+    for (let i = 0; i < sSel.options.length; i++) {
+      if (sSel.options[i].text.toLowerCase().includes(serviceName.toLowerCase().substring(0, 15))) {
+        sSel.selectedIndex = i;
+        updatePricing();
+        break;
+      }
+    }
+  }
+  if (staffName) {
+    for (let i = 0; i < stSel.options.length; i++) {
+      if (stSel.options[i].text.toLowerCase().includes(staffName.toLowerCase().split(' ')[0])) {
+        stSel.selectedIndex = i;
+        break;
+      }
+    }
+  }
+}
+
+function populateDropdownsWithContext(catFilter = null) {
+  const sSel = document.getElementById('form-service-select');
+  sSel.innerHTML = '<option value="">-- Choose matching service --</option>';
+
+  const displayList = catFilter ? SALON_SERVICES.filter(s => s.category === catFilter) : SALON_SERVICES;
+  displayList.forEach(s => {
+    const realIdx = SALON_SERVICES.indexOf(s);
+    const opt = document.createElement('option');
+    opt.value = realIdx;
+    opt.innerText = `${s.name} - $${s.price.toFixed(2)} (${s.duration})`;
+    sSel.appendChild(opt);
+  });
+
+  const stSel = document.getElementById('form-staff-select');
+  stSel.innerHTML = '<option value="">-- Choose specialist --</option>';
+  SALON_STAFF.forEach((st, idx) => {
+    const opt = document.createElement('option');
+    opt.value = idx;
+    opt.innerText = `${st.name} (${st.title})`;
+    stSel.appendChild(opt);
+  });
+}
+
+document.getElementById('show-all-services-btn')?.addEventListener('click', () => {
+  populateDropdownsWithContext(null);
+  document.getElementById('context-cat-name').innerText = "All 242 Services";
+});
+
+function updatePricing() {
+  const idx = document.getElementById('form-service-select').value;
+  if (idx !== "") {
+    const s = SALON_SERVICES[idx];
+    const base = s.price;
+    const tax = base * 0.15;
+    const total = base + tax;
+    document.getElementById('summary-base-price').innerText = `$${base.toFixed(2)}`;
+    document.getElementById('summary-duration').innerText = s.duration;
+    document.getElementById('summary-tax').innerText = `$${tax.toFixed(2)}`;
+    document.getElementById('summary-total').innerText = `$${total.toFixed(2)} CAD`;
+  }
+}
+document.getElementById('form-service-select')?.addEventListener('change', updatePricing);
+
+// Confirm Booking & Score Report Card
+document.getElementById('submit-booking-btn')?.addEventListener('click', () => {
+  const sIdx = document.getElementById('form-service-select').value;
+  const stIdx = document.getElementById('form-staff-select').value;
+  if (sIdx === "" || stIdx === "") { alert("Please assign both a service and specialist!"); return; }
+
+  const s = SALON_SERVICES[sIdx], st = SALON_STAFF[stIdx];
+  const total = (s.price * 1.15).toFixed(2);
+  const time = document.getElementById('form-time-select').value;
+
+  document.getElementById('t-service').innerText = s.name;
+  document.getElementById('t-staff').innerText = `${st.name} (${st.title})`;
+  document.getElementById('t-dur').innerText = s.duration;
+  document.getElementById('t-time').innerText = `Today @ ${time}`;
+  document.getElementById('t-total').innerText = `$${total} CAD`;
+
+  document.getElementById('booking-modal').classList.remove('active');
+  document.getElementById('ticket-modal').style.display = 'flex';
+  audio.playFanfare();
+});
+
+document.getElementById('ticket-continue-btn')?.addEventListener('click', () => {
+  document.getElementById('ticket-modal').style.display = 'none';
+  gameState.isModalOpen = false;
+  gameState.scenarioIdx++;
+  document.getElementById('quest-text').innerText = "Client booking completed! Walk around the salon, test styling chairs, or talk to Jazzlyn for the next client training round.";
+});
+document.getElementById('close-booking-modal')?.addEventListener('click', () => {
+  document.getElementById('booking-modal').classList.remove('active');
+  gameState.isModalOpen = false;
+});
+
+// --- CATALOG & STAFF DIRECTORY ---
+function initCatalogAndStaff() {
+  const catGrid = document.getElementById('catalog-service-grid');
+  function render(search = '') {
+    catGrid.innerHTML = '';
+    const filtered = SALON_SERVICES.filter(s => !search || s.name.toLowerCase().includes(search.toLowerCase()));
+    filtered.slice(0, 60).forEach(s => {
+      const card = document.createElement('div');
+      card.className = 'service-card';
+      card.innerHTML = `
+        <div>
+          <div class="service-cat">${s.category}</div>
+          <div class="service-name">${s.name}</div>
+        </div>
+        <div class="service-meta">
+          <span class="service-price">$${s.price.toFixed(2)}</span>
+          <span class="service-dur">⏱️ ${s.duration}</span>
+        </div>
+      `;
+      catGrid.appendChild(card);
+    });
+  }
+  render();
+  document.getElementById('catalog-search')?.addEventListener('input', (e) => render(e.target.value));
+
+  const staffGrid = document.getElementById('staff-directory-grid');
+  staffGrid.innerHTML = '';
+  SALON_STAFF.forEach(st => {
+    const card = document.createElement('div');
+    card.className = 'staff-card';
+    const init = st.name.split(' ').map(n => n[0]).join('');
+    card.innerHTML = `
+      <div class="staff-badge-icon">${init}</div>
+      <div>
+        <div class="staff-name">${st.name}</div>
+        <div class="staff-title">${st.title}</div>
+      </div>
+    `;
+    staffGrid.appendChild(card);
+  });
+
+  document.querySelectorAll('.tab-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+      document.querySelectorAll('.tab-btn').forEach(t => t.classList.remove('active'));
+      document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
+      btn.classList.add('active');
+      document.getElementById(btn.dataset.tab).classList.add('active');
+    });
+  });
+}
+initCatalogAndStaff();
+
+// --- CUSTOMIZATION LISTENERS ---
+document.querySelectorAll('#gender-options .opt-btn').forEach(btn => {
+  btn.addEventListener('click', () => {
+    document.querySelectorAll('#gender-options .opt-btn').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+    gameState.customization.gender = btn.dataset.val;
+    updatePreview();
+  });
+});
+document.querySelectorAll('#skin-options .color-swatch').forEach(sw => {
+  sw.addEventListener('click', () => {
+    document.querySelectorAll('#skin-options .color-swatch').forEach(s => s.classList.remove('active'));
+    sw.classList.add('active');
+    gameState.customization.skinColor = sw.dataset.val;
+    updatePreview();
+  });
+});
+document.querySelectorAll('#hair-style-options .opt-btn').forEach(btn => {
+  btn.addEventListener('click', () => {
+    document.querySelectorAll('#hair-style-options .opt-btn').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+    gameState.customization.hairStyle = btn.dataset.val;
+    updatePreview();
+  });
+});
+document.querySelectorAll('#hair-color-options .color-swatch').forEach(sw => {
+  sw.addEventListener('click', () => {
+    document.querySelectorAll('#hair-color-options .color-swatch').forEach(s => s.classList.remove('active'));
+    sw.classList.add('active');
+    gameState.customization.hairColor = sw.dataset.val;
+    updatePreview();
+  });
+});
+document.querySelectorAll('#top-color-options .color-swatch').forEach(sw => {
+  sw.addEventListener('click', () => {
+    document.querySelectorAll('#top-color-options .color-swatch').forEach(s => s.classList.remove('active'));
+    sw.classList.add('active');
+    gameState.customization.topColor = sw.dataset.val;
+    updatePreview();
+  });
+});
+document.querySelectorAll('#bottom-color-options .color-swatch').forEach(sw => {
+  sw.addEventListener('click', () => {
+    document.querySelectorAll('#bottom-color-options .color-swatch').forEach(s => s.classList.remove('active'));
+    sw.classList.add('active');
+    gameState.customization.bottomColor = sw.dataset.val;
+    updatePreview();
+  });
+});
+
+// Start Game
+document.getElementById('start-game-btn')?.addEventListener('click', () => {
+  audio.init();
+  audio.startElectronicLounge();
+  document.getElementById('intro-screen').classList.add('hidden');
+  gameState.isGameStarted = true;
+  setupCharacters();
+});
+
+document.getElementById('btn-audio')?.addEventListener('click', () => {
+  audio.init();
+  const on = audio.toggleAudio();
+  document.getElementById('btn-audio').innerText = `🎵 Audio: ${on ? 'ON' : 'OFF'}`;
+});
+
+document.getElementById('interaction-prompt')?.addEventListener('click', triggerRoleReversalMinigame);
+
+// Main Animation Loop
+let clock = new THREE.Clock();
+function animate() {
+  requestAnimationFrame(animate);
+  const delta = Math.min(clock.getDelta(), 0.1);
+  if (gameState.isGameStarted) {
+    updatePlayer(delta);
+    updateReceptionist(delta);
+  }
+  renderer.render(scene, camera);
+}
+animate();
+
+window.addEventListener('resize', () => {
+  camera.aspect = window.innerWidth / window.innerHeight;
+  camera.updateProjectionMatrix();
+  renderer.setSize(window.innerWidth, window.innerHeight);
+});
+
+initPreview();
+</script>
 </body>
 </html>
